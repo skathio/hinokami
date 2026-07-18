@@ -3,6 +3,7 @@
 // recipe never touches engine code (NFR-12).
 
 import type { Recipe, RecipeId } from './contract';
+import { pizzaRecipe } from './pizza';
 
 export interface RecipeRegistry {
   register(recipe: Recipe): void;
@@ -34,3 +35,5 @@ export function createRecipeRegistry(): RecipeRegistry {
 /** The app-wide registry. Phase 2's pizza recipe registers itself here; Phase 4's UI reads
  * from it via `list()`/`lookup()`. */
 export const recipeRegistry: RecipeRegistry = createRecipeRegistry();
+
+recipeRegistry.register(pizzaRecipe);

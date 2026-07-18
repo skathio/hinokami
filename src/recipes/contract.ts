@@ -123,6 +123,14 @@ export interface RecipeBounds {
   readonly ovenStyleMax: number;
   readonly ambientMin: number;
   readonly ambientMax: number;
+  /** Optional: the fridge-stage duration band (hours) for a recipe with a cold-ferment pathway.
+   * Additive (contract §8) — omitted by any recipe without an elastic cold-ferment stage; no
+   * engine code reads this today (the elastic clamp range lives on the `Stage.elastic` field
+   * itself), so there is no "engine default" to be wrong for existing recipes. It exists purely
+   * so a recipe module has one named source of truth for its own `elastic.minMinutes/maxMinutes`
+   * instead of a second hardcoded pair (see `pizza/index.ts`). */
+  readonly coldFermentHoursMin?: number;
+  readonly coldFermentHoursMax?: number;
 }
 
 /** The engine-supplied context for `stageDuration` (extension point A). `stage` duplicates the
