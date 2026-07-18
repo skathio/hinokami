@@ -22,7 +22,12 @@ export function generateWorkflow(
   inputs: WorkflowInputs,
   now: Date = new Date(),
 ): GenerateWorkflowResult {
-  const scaledIngredients = scaleFormula(recipe.formula, {
+  // P7: a pathway may override the recipe's formula (e.g. cold-ferment's reduced yeast dose).
+  // Falls back to recipe.formula when the pathway declares no override, or when the pathway id
+  // itself is unrecognized (the schedule solver below throws loudly on that case; scaling
+  // doesn't need to duplicate that check).
+  const pathway = recipe.pathways.find((p) => p.id === inputs.pathway);
+  const scaledIngredients = scaleFormula(pathway?.formula ?? recipe.formula, {
     ballCount: inputs.ballCount,
     ballWeightG: inputs.ballWeightG,
   });

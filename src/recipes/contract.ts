@@ -106,6 +106,12 @@ export interface Pathway {
   readonly id: PathwayRef;
   readonly name: string;
   readonly stageIds: ReadonlyArray<StageRef>;
+  /** Optional per-pathway formula override (P7). When present, the engine scales THIS formula
+   * instead of `Recipe.formula` for sessions on this pathway (e.g. cold-ferment's reduced yeast
+   * dose — see `pizza/index.ts`). Additive (contract §8): omitting it — the default for every
+   * pathway before this field existed — preserves exactly the prior behavior, so no existing
+   * recipe needs an edit. */
+  readonly formula?: BakersPercentageFormula;
 }
 
 /** The recipe's input bounds (FR-12) — self-describing enough that the engine can validate

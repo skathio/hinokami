@@ -86,4 +86,55 @@ describe('generateWorkflow', () => {
     expect(result.error).toHaveProperty('earliestFeasibleTarget');
     expect(result.error).not.toHaveProperty('minimumOvenC');
   });
+
+  describe('pathway-conditional formula (P7)', () => {
+    // A stub recipe with two pathways: one declares a formula override, one doesn't. Both
+    // directions of `pathway.formula ?? recipe.formula` must be exercised — a backward
+    // implementation (`recipe.formula ?? pathway.formula`) would silently break the no-override
+    // pathway, since `recipe.formula` is never undefined and would always win.
+    const recipeFormula = { ingredients: [{ name: 'Flour', percent: 100 }, { name: 'Water', percent: 60 }] };
+    const overrideFormula = { ingredients: [{ name: 'Flour', percent: 100 }, { name: 'Water', percent: 70 }] };
+
+    function buildTwoPathwayRecipe(): Recipe {
+      return {
+        contractVersion: 1,
+        id: createRecipeId('stub-formula-recipe'),
+        name: 'Stub formula recipe',
+        description: 'A stub recipe for the pathway-formula-override unit test.',
+        formula: recipeFormula,
+        bounds: BOUNDS,
+        stages: STAGES,
+        pathways: [
+          { id: 'no-override', name: 'No override', stageIds: ['mix', 'bake'] },
+          { id: 'with-override', name: 'With override', stageIds: ['mix', 'bake'], formula: overrideFormula },
+        ],
+        stageDuration: stageDurationFromTable({ mix: () => 15 }),
+        adaptBake: constantAdaptBake(10, 250, BOUNDS.ovenMin),
+      };
+    }
+
+    it('scales the pathway override formula when present', () => {
+      const recipe = buildTwoPathwayRecipe();
+      const result = generateWorkflow(recipe, baseInputs({ pathway: 'with-override' }), NOW);
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error('expected ok result');
+      const water = result.scaledIngredients.find((i) => i.name === 'Water');
+      // batch: 2 balls x 250g = 500g total; totalPercent = 170; flour = 500/1.7 ≈ 294.12g;
+      // water @ 70% ≈ 205.88g. Distinct from the 60%-water recipe.formula result below.
+      expect(water?.grams).toBeCloseTo(205.9, 1);
+    });
+
+    it('falls back to recipe.formula when the pathway declares no override', () => {
+      const recipe = buildTwoPathwayRecipe();
+      const result = generateWorkflow(recipe, baseInputs({ pathway: 'no-override' }), NOW);
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error('expected ok result');
+      const water = result.scaledIngredients.find((i) => i.name === 'Water');
+      // batch: 2 balls x 250g = 500g total; totalPercent = 160; flour = 500/1.6 = 312.5g;
+      // water @ 60% = 187.5g — recipe.formula's percentage, not the override's 70%.
+      expect(water?.grams).toBeCloseTo(187.5, 1);
+    });
+  });
 });

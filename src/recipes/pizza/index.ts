@@ -52,15 +52,12 @@ export const pizzaBounds: RecipeBounds = {
 // ---------------------------------------------------------------------------------------------
 // Formula (FR-4) — baker's percentages, flour = 100%. Per-ball target weight 250 g.
 //
-// KNOWN V1 LIMITATION (flagged, not silently improvised — see the coder's final report): the
-// phase spec calls for yeast at 0.2% same-day vs. 0.1% cold-ferment (scaling down further with
-// cold duration). The actual `Recipe` contract exposes a single `formula` field — there is no
-// per-pathway formula, and `scaleFormula`/`generateWorkflow` (engine, off-limits this iteration)
-// always scale `recipe.formula` regardless of the chosen pathway. Encoding a pathway-conditional
-// formula would require an engine change, which NFR-12 forbids for this iteration. v1 therefore
-// uses a single formula at the same-day yeast percentage for both pathways; the cold-ferment
-// yeast reduction is a documented follow-up (see progress.md "Follow-ups identified"), consistent
-// with the phase spec's own acknowledgment that "longer-cold scaling is a documented follow-up".
+// Cold-ferment yeast (P7, iteration 2.2): a 24-72h cold ferment needs roughly half the
+// commercial yeast a same-day dough does, or it over-ferments. `pizzaFormula` below is the
+// same-day formula (0.2% yeast); `coldFermentFormula` is the cold-ferment pathway's override
+// (0.1% yeast, the 24h anchor — longer-cold scaling down to ~0.02-0.03% @72h remains a
+// documented follow-up, per the phase spec's original Formula section). The override is
+// consumed via `Pathway.formula` (`contract.ts`) — see `coldFermentPathway` below.
 // ---------------------------------------------------------------------------------------------
 
 export const pizzaFormula: BakersPercentageFormula = {
@@ -69,6 +66,19 @@ export const pizzaFormula: BakersPercentageFormula = {
     { name: 'Water', percent: 62 },
     { name: 'Salt', percent: 2.8 },
     { name: 'Yeast (instant dry)', percent: 0.2 },
+  ],
+};
+
+/** Cold-ferment override (P7): identical flour/water/salt to `pizzaFormula`, yeast at 0.1%
+ * instead of 0.2%. Defined as a complete formula object (not a spread + partial override) since
+ * `BakersPercentageFormula.ingredients` is an array, not named fields — a full literal is the
+ * clearer shape here and avoids a fragile by-name lookup into `pizzaFormula.ingredients`. */
+export const coldFermentFormula: BakersPercentageFormula = {
+  ingredients: [
+    { name: 'Flour', percent: 100 },
+    { name: 'Water', percent: 62 },
+    { name: 'Salt', percent: 2.8 },
+    { name: 'Yeast (instant dry)', percent: 0.1 },
   ],
 };
 
@@ -273,7 +283,13 @@ const pizzaStages: Stage[] = [
     // Elastic (`decisions.md P3` pass-2 fix, Major 1): `solveScheduleBackward` — not
     // `stageDuration` — clamps available slack into this range, stretching the fridge stage
     // toward the 48h quality sweet spot instead of always defaulting to the 24h floor.
-    elastic: { minMinutes: COLD_FERMENT_HOURS_MIN * 60, maxMinutes: COLD_FERMENT_HOURS_MAX * 60 },
+    // Reads `pizzaBounds.coldFermentHoursMin/Max` directly (2.1's review Minor, fixed in P7) so
+    // `RecipeBounds.coldFermentHoursMin/Max`'s "single source of truth" comment is actually true,
+    // rather than duplicating a disconnected copy of the same two numbers.
+    elastic: {
+      minMinutes: pizzaBounds.coldFermentHoursMin! * 60,
+      maxMinutes: pizzaBounds.coldFermentHoursMax! * 60,
+    },
   },
   { id: 'temper', name: 'Temper', type: 'temper', why: TEMPER_WHY, cue: TEMPER_CUE },
   { id: 'preheat', name: 'Preheat', type: 'preheat', why: PREHEAT_WHY },
@@ -294,6 +310,8 @@ const coldFermentPathway: Pathway = {
   id: 'cold-ferment',
   name: 'Cold ferment',
   stageIds: ['mix', 'bulk', 'cold-ferment', 'shape', 'temper', 'preheat', 'bake'],
+  // P7: 0.1% yeast instead of the same-day 0.2% — see `coldFermentFormula` above.
+  formula: coldFermentFormula,
 };
 
 // ---------------------------------------------------------------------------------------------

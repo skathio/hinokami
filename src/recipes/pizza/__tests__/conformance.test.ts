@@ -59,3 +59,31 @@ describe('stage list + pathway shape (phase 2 DoD)', () => {
     }
   });
 });
+
+describe('per-pathway formula override (P7, iteration 2.2)', () => {
+  it('cold-ferment pathway has a formula override with 0.1% yeast', () => {
+    const coldFerment = pizzaRecipe.pathways.find((p) => p.id === 'cold-ferment');
+    const yeast = coldFerment?.formula?.ingredients.find((i) => i.name === 'Yeast (instant dry)');
+    expect(yeast?.percent).toBe(0.1);
+  });
+
+  it('same-day pathway declares no override, so its effective yeast is recipe.formula\'s 0.2%', () => {
+    const sameDay = pizzaRecipe.pathways.find((p) => p.id === 'same-day');
+    expect(sameDay?.formula).toBeUndefined();
+    const yeast = pizzaRecipe.formula.ingredients.find((i) => i.name === 'Yeast (instant dry)');
+    expect(yeast?.percent).toBe(0.2);
+  });
+
+  it('cold-ferment override matches recipe.formula on every ingredient except yeast', () => {
+    const coldFerment = pizzaRecipe.pathways.find((p) => p.id === 'cold-ferment');
+    for (const ingredient of pizzaRecipe.formula.ingredients) {
+      const override = coldFerment?.formula?.ingredients.find((i) => i.name === ingredient.name);
+      expect(override, `expected cold-ferment override to include "${ingredient.name}"`).toBeDefined();
+      if (ingredient.name === 'Yeast (instant dry)') {
+        expect(override?.percent).toBe(0.1);
+      } else {
+        expect(override?.percent).toBe(ingredient.percent);
+      }
+    }
+  });
+});
