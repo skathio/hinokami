@@ -17,5 +17,10 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // Works around a Node ≥22 / Vitest jsdom-environment interaction: Node's own inert global
+    // `localStorage` shadows jsdom's real one unless explicitly repointed. See the setup file's
+    // header comment (`src/store/session.ts` / Phase 3 is the first module to need a working
+    // `localStorage` in tests).
+    setupFiles: ['./src/test/setup-jsdom-local-storage.ts'],
   },
 });
