@@ -1,2 +1,24 @@
 .somi/
-.claude/
+
+# dependencies
+node_modules/
+
+# build output
+dist/
+dist-ssr/
+*.tsbuildinfo
+
+# somi hook telemetry (runtime log, not repo config — .claude/ itself stays tracked)
+.claude/audit.log
+
+# env
+.env
+.env.*
+!.env.example
+
+# editor / OS
+.DS_Store
+*.local
+
+# logs
+npm-debug.log*
