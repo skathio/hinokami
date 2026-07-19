@@ -1,7 +1,7 @@
 // Engine-side types NOT on the `Recipe` interface (P1 file layout). These are the shapes the
 // engine produces/consumes across scheduling, progression, and persistence.
 
-import type { PathwayRef, RecipeId, StageRef } from '@/recipes/contract';
+import type { BakeAdaptation, PathwayRef, RecipeId, StageRef } from '@/recipes/contract';
 
 /** One step in a generated workflow, before real clock times are attached. */
 export interface Step {
@@ -74,4 +74,13 @@ export interface BakeSession {
   readonly workflow: ReadonlyArray<ScheduledStep>;
   readonly stepIndex: number;
   readonly status: 'in-progress' | 'completed';
+  /** The resolved bake adaptation for this session (Phase 4.2 plan-change, Phase 4.1 review
+   * follow-up). `generateWorkflow` already computes this (temp/time tailored to the user's oven,
+   * plus optional `doughGuidance`/`caveat` for a 200-219 °C best-effort bake) but it was
+   * previously discarded after scheduling — leaving a persisted-and-reloaded session with no way
+   * to show the caveat text on the bake step. Optional/additive: no `schemaVersion` bump (v1 is
+   * pre-release, no live persisted sessions to migrate — same precedent as Phase 2's P7 fix
+   * leaving `PIZZA_CONTENT_VERSION` at `1.0.0`). Absent only for a session serialized before this
+   * field existed, which in practice never happened outside dev. */
+  readonly bakeAdaptation?: BakeAdaptation;
 }

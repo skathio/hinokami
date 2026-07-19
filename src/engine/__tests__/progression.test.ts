@@ -134,12 +134,23 @@ describe('applyNudge', () => {
     const originalMixStart = session.workflow[0].clockStartTime;
     const originalProofStart = session.workflow[1].clockStartTime;
 
-    const nudged = applyNudge(session, -10, recipe);
+    const result = applyNudge(session, -10, recipe);
 
-    expect(nudged.workflow[0].clockStartTime).toEqual(originalMixStart); // untouched (already past)
-    expect(nudged.workflow[1].clockStartTime).toEqual(
+    expect(result.session.workflow[0].clockStartTime).toEqual(originalMixStart); // untouched (already past)
+    expect(result.session.workflow[1].clockStartTime).toEqual(
       new Date(originalProofStart.getTime() - 10 * 60_000),
     );
+  });
+
+  it('passes reschedule\'s real clamped signal through (review fix, pass 2)', () => {
+    const recipe = buildRecipe();
+    const session = buildSession({ stepIndex: 1 });
+
+    const unclamped = applyNudge(session, -1, recipe);
+    expect(unclamped.clamped).toBe(false);
+
+    const clamped = applyNudge(session, 10_000, recipe); // absurdly large positive — must clamp
+    expect(clamped.clamped).toBe(true);
   });
 
   it('throws if the session belongs to a different recipe (fail loud, sdd.md §6)', () => {

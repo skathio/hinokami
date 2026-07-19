@@ -94,8 +94,12 @@ describe('App — startup rehydration', () => {
     // actually needs — gated on `hasHydrated()`, resumes correctly either way — holds regardless
     // of whether that resolution happens synchronously or after a real await, which is what the
     // `waitFor` below verifies without assuming either timing.
+    //
+    // Asserts against `StepRunnerScreen`'s real render (Phase 4.2) — `buildRawSession`'s first
+    // step is `stageId: 'mix'`/`name: 'Mix'` at `stepIndex: 0`, so "Mix" is what a resumed session
+    // shows first.
     await waitFor(() => {
-      expect(screen.getByText(/bake in progress/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Mix' })).toBeInTheDocument();
     });
 
     expect(screen.queryByText(/choose a recipe/i)).not.toBeInTheDocument();

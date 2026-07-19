@@ -77,6 +77,10 @@ describe('useSessionStore — round trip', () => {
 
     const started = useSessionStore.getState().session;
     expect(started).not.toBeNull();
+    // Phase 4.2 plan-change: `bakeAdaptation` must survive generation and be persisted, so a
+    // caveated bake's `why`/caveat text can be shown on reload, not just right after generation.
+    expect(started?.bakeAdaptation).toBeDefined();
+    expect(started?.bakeAdaptation?.bakeTempC).toBe(250);
 
     await useSessionStore.persist.rehydrate();
 
@@ -87,6 +91,7 @@ describe('useSessionStore — round trip', () => {
     expect(restored?.workflow).toEqual(started?.workflow);
     expect(restored?.workflow[0]?.clockStartTime).toBeInstanceOf(Date);
     expect(restored?.inputs).toEqual(started?.inputs);
+    expect(restored?.bakeAdaptation).toEqual(started?.bakeAdaptation);
     expect(useSessionStore.getState().migrationNotice).toBeNull();
   });
 
@@ -100,6 +105,37 @@ describe('useSessionStore — round trip', () => {
     // not Zustand's own `{state, version}` persist envelope.
     expect(parsed.schemaVersion).toBe(1);
     expect(parsed.recipeId).toBe(pizzaRecipe.id);
+  });
+});
+
+describe('useSessionStore — applyNudge / lastNudgeClamped (FR-17, review fix pass 2)', () => {
+  it('sets lastNudgeClamped: false after a small nudge that stays within bounds', () => {
+    useSessionStore.getState().startSession(pizzaRecipe, buildInputs());
+
+    useSessionStore.getState().applyNudge(1);
+
+    expect(useSessionStore.getState().lastNudgeClamped).toBe(false);
+  });
+
+  it('sets lastNudgeClamped: true after an absurdly large nudge that must clamp — the real ' +
+    'engine signal `NudgePanel` reads, not a UI-side before/after heuristic', () => {
+    useSessionStore.getState().startSession(pizzaRecipe, buildInputs());
+
+    useSessionStore.getState().applyNudge(1_000_000);
+
+    expect(useSessionStore.getState().lastNudgeClamped).toBe(true);
+  });
+
+  it('resets lastNudgeClamped to false on startSession and resetSession', () => {
+    useSessionStore.getState().startSession(pizzaRecipe, buildInputs());
+    useSessionStore.getState().applyNudge(1_000_000);
+    expect(useSessionStore.getState().lastNudgeClamped).toBe(true);
+
+    useSessionStore.getState().resetSession();
+    expect(useSessionStore.getState().lastNudgeClamped).toBe(false);
+
+    useSessionStore.getState().startSession(pizzaRecipe, buildInputs());
+    expect(useSessionStore.getState().lastNudgeClamped).toBe(false);
   });
 });
 

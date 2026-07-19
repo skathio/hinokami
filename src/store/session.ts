@@ -60,6 +60,14 @@ export interface SessionStore {
   session: BakeSession | null;
   migrationNotice: string | null;
   view: View;
+  /** Review fix (Phase 4.2, pass 2): whether the most recent `applyNudge` call had to clamp at
+   * least one step's shifted time to the `[0, targetTimeMs]` bounds — i.e. the requested nudge
+   * could not be fully honored. This is `engine/schedule.ts`'s `reschedule` clamp signal passed
+   * straight through, not something re-derived here or in `NudgePanel`; a UI-side heuristic
+   * (comparing only the current step's before/after time) under-fires because steps clamp at
+   * different points in the remaining schedule. Ephemeral, deliberately excluded from
+   * `PersistedSessionState`/`partialize` below — same class as `view`. */
+  lastNudgeClamped: boolean;
   startSession: (recipe: Recipe, inputs: SessionInputs) => GenerateWorkflowResult;
   advanceStep: () => void;
   backStep: () => void;
@@ -138,6 +146,7 @@ export const useSessionStore = create<SessionStore>()(
       session: null,
       migrationNotice: null,
       view: 'recipe-select',
+      lastNudgeClamped: false,
 
       startSession: (recipe, inputs) => {
         const result = generateWorkflow(recipe, inputs);
@@ -160,8 +169,9 @@ export const useSessionStore = create<SessionStore>()(
           workflow: result.steps,
           stepIndex: 0,
           status: 'in-progress',
+          bakeAdaptation: result.bakeAdaptation,
         };
-        set({ session, migrationNotice: null, view: 'runner' });
+        set({ session, migrationNotice: null, view: 'runner', lastNudgeClamped: false });
         return result;
       },
 
@@ -186,10 +196,12 @@ export const useSessionStore = create<SessionStore>()(
             `useSessionStore.applyNudge: recipe "${session.recipeId}" not found in registry`,
           );
         }
-        set({ session: engineApplyNudge(session, deltaMinutes, recipe) });
+        const result = engineApplyNudge(session, deltaMinutes, recipe);
+        set({ session: result.session, lastNudgeClamped: result.clamped });
       },
 
-      resetSession: () => set({ session: null, migrationNotice: null, view: 'recipe-select' }),
+      resetSession: () =>
+        set({ session: null, migrationNotice: null, view: 'recipe-select', lastNudgeClamped: false }),
 
       dismissMigrationNotice: () => set({ migrationNotice: null }),
 

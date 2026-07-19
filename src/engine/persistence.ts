@@ -5,6 +5,7 @@
 // hand-constructed inputs and storage-agnostic.
 
 import { isValidRecipeIdShape } from '@/recipes/contract';
+import type { BakeAdaptation } from '@/recipes/contract';
 import type { BakeSession, ScheduledStep } from './types';
 
 const CURRENT_SCHEMA_VERSION = 1 as const;
@@ -67,6 +68,22 @@ function reviveScheduledStep(raw: unknown): ScheduledStep | null {
   };
 }
 
+/** Phase 4.2 plan-change (Task 1): `bakeAdaptation` is optional/additive on `BakeSession`
+ * (`engine/types.ts`) — a session serialized before this field existed simply has no
+ * `bakeAdaptation` key, which is a valid `undefined` here, not a validation failure. A present but
+ * malformed value (tampered/corrupt localStorage) is dropped rather than failing the whole
+ * restore — it's caveat-display data, not structurally load-bearing for the session itself. */
+function isValidBakeAdaptationShape(raw: unknown): raw is BakeAdaptation {
+  if (!isPlainObject(raw)) return false;
+  const { bakeTempC, bakeTimeMinutes, doughGuidance, caveat } = raw;
+  return (
+    typeof bakeTempC === 'number' &&
+    typeof bakeTimeMinutes === 'number' &&
+    (doughGuidance === undefined || typeof doughGuidance === 'string') &&
+    (caveat === undefined || typeof caveat === 'string')
+  );
+}
+
 function isValidInputsShape(raw: unknown): raw is BakeSession['inputs'] {
   if (!isPlainObject(raw)) return false;
   const { targetTime, ovenMaxC, hasStoneOrSteel, ambientC, ballCount, ballWeightG, pathway } = raw;
@@ -119,6 +136,7 @@ export function restore(raw: unknown): BakeSession | null {
     workflow,
     stepIndex: parsed.stepIndex,
     status: parsed.status,
+    bakeAdaptation: isValidBakeAdaptationShape(parsed.bakeAdaptation) ? parsed.bakeAdaptation : undefined,
   };
 }
 

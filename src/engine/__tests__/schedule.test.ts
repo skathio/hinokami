@@ -318,8 +318,13 @@ describe('reschedule (bounded pace-nudge, D14/FR-17)', () => {
   it('shifts every remaining step by delta minutes when the shift stays within bounds', () => {
     const remaining = buildRemaining();
     const result = reschedule(remaining, -15);
-    expect(result[0].clockStartTime).toEqual(new Date(remaining[0].clockStartTime.getTime() - 15 * 60_000));
-    expect(result[1].clockStartTime).toEqual(new Date(remaining[1].clockStartTime.getTime() - 15 * 60_000));
+    expect(result.steps[0].clockStartTime).toEqual(
+      new Date(remaining[0].clockStartTime.getTime() - 15 * 60_000),
+    );
+    expect(result.steps[1].clockStartTime).toEqual(
+      new Date(remaining[1].clockStartTime.getTime() - 15 * 60_000),
+    );
+    expect(result.clamped).toBe(false);
   });
 
   it('never produces a clockStartTime past the target (end of the last remaining step)', () => {
@@ -328,7 +333,7 @@ describe('reschedule (bounded pace-nudge, D14/FR-17)', () => {
 
     const result = reschedule(remaining, 10_000); // an absurdly large positive nudge
 
-    for (const step of result) {
+    for (const step of result.steps) {
       expect(step.clockStartTime.getTime()).toBeLessThanOrEqual(target.getTime());
     }
   });
@@ -338,12 +343,46 @@ describe('reschedule (bounded pace-nudge, D14/FR-17)', () => {
 
     const result = reschedule(remaining, -1e12); // an absurdly large negative nudge
 
-    for (const step of result) {
+    for (const step of result.steps) {
       expect(step.clockStartTime.getTime()).toBeGreaterThanOrEqual(0);
     }
   });
 
-  it('returns an empty array for an empty remaining list', () => {
-    expect(reschedule([], 15)).toEqual([]);
+  it('returns an empty array + clamped: false for an empty remaining list', () => {
+    expect(reschedule([], 15)).toEqual({ steps: [], clamped: false });
+  });
+
+  describe('clamped signal (review fix, pass 2 — a real engine signal, not a UI-side heuristic)', () => {
+    it('reports clamped: true when a large positive nudge clamps at least one step at the target', () => {
+      const remaining = buildRemaining();
+      const result = reschedule(remaining, 10_000); // absurdly large — every step clamps
+      expect(result.clamped).toBe(true);
+    });
+
+    it('reports clamped: true when a large negative nudge clamps at least one step at the epoch floor', () => {
+      const remaining = buildRemaining();
+      const result = reschedule(remaining, -1e12);
+      expect(result.clamped).toBe(true);
+    });
+
+    it('reports clamped: false when the shift stays fully within bounds for every step', () => {
+      const remaining = buildRemaining();
+      const result = reschedule(remaining, 5); // small, well within [epoch, target] for both steps
+      expect(result.clamped).toBe(false);
+    });
+
+    it('reports clamped: true when only the LAST (target-closest) step clamps, even though the ' +
+      'first/current step does not — the exact scenario the UI-side before/after heuristic missed', () => {
+      // buildRemaining(): proof starts 40 min before target, bake starts 10 min before target.
+      // A +15 nudge pushes bake's start 5 min past target — bake clamps — while proof (40 min of
+      // headroom) moves the full +15 min unclamped. A heuristic that only checks the CURRENT
+      // step (proof, index 0) would see an unclamped move and wrongly report "not clamped".
+      const remaining = buildRemaining();
+      const result = reschedule(remaining, 15);
+
+      const unclampedProofShift = new Date(remaining[0].clockStartTime.getTime() + 15 * 60_000);
+      expect(result.steps[0].clockStartTime).toEqual(unclampedProofShift); // current step: NOT clamped
+      expect(result.clamped).toBe(true); // but the schedule as a whole WAS clamped (bake step)
+    });
   });
 });

@@ -240,6 +240,18 @@ export function solveScheduleBackward(
   return { ok: true, steps: scheduledSteps };
 }
 
+/** `reschedule`'s result (review fix, pass 2): `clamped` is a real engine-computed signal —
+ * true if *any* step's shift had to be clamped to the `[0, targetTimeMs]` bounds rather than
+ * applied exactly, i.e. the requested nudge could not be fully honored everywhere. Callers (the
+ * store, then `NudgePanel`) use this instead of trying to infer clamping themselves by diffing a
+ * single step's before/after time — which is unreliable here because steps clamp at different
+ * points (the step closest to the target bound clamps first), so no single step's movement (or
+ * lack of it) reliably indicates whether the schedule as a whole got clamped. */
+export interface RescheduleResult {
+  readonly steps: ScheduledStep[];
+  readonly clamped: boolean;
+}
+
 /**
  * Bounded pace-nudge (D14, FR-17). Shifts every remaining step's `clockStartTime` by
  * `deltaMinutes` (positive = push later, negative = pull earlier). Each resulting start time is
@@ -249,12 +261,18 @@ export function solveScheduleBackward(
  * epoch; a defensive floor against a pathological `deltaMinutes` producing a nonsensical date,
  * not a claim about "now"). The progression state machine (`progression.ts`) is responsible for
  * only nudging steps that haven't started yet; this function has no notion of "now" itself.
+ *
+ * Every step clamps to the *same* `[0, targetTimeMs]` bounds, and `clamp` is monotonic
+ * non-decreasing — so a uniform shift followed by this clamp can never reorder an
+ * already-ordered sequence (review pass 1, investigated and confirmed: reordering is
+ * mathematically impossible here). Multiple trailing steps can collapse to the identical clamped
+ * instant on a large enough nudge; that's correct boundary behavior, not a bug.
  */
 export function reschedule(
   remaining: ReadonlyArray<ScheduledStep>,
   deltaMinutes: number,
-): ScheduledStep[] {
-  if (remaining.length === 0) return [];
+): RescheduleResult {
+  if (remaining.length === 0) return { steps: [], clamped: false };
 
   const lastStep = remaining[remaining.length - 1];
   // Every value here stays a plain number (milliseconds) until the very end. `Date` is only
@@ -269,9 +287,13 @@ export function reschedule(
   const deltaMs = deltaMinutes * 60_000;
   const epochMs = 0;
 
-  return remaining.map((step) => {
+  let clamped = false;
+  const steps = remaining.map((step) => {
     const shiftedMs = step.clockStartTime.getTime() + deltaMs;
     const clampedMs = clamp(shiftedMs, epochMs, targetTimeMs);
+    if (clampedMs !== shiftedMs) clamped = true;
     return { ...step, clockStartTime: new Date(clampedMs) };
   });
+
+  return { steps, clamped };
 }

@@ -14,30 +14,13 @@ import type { Recipe } from '@/recipes/contract';
 import { useSessionStore } from '@/store/session';
 import RecipeSelectScreen from '@/ui/RecipeSelectScreen';
 import ConfigScreen from '@/ui/ConfigScreen';
+import StepRunnerScreen from '@/ui/StepRunnerScreen';
 import MigrationNotice from '@/ui/MigrationNotice';
 
 function SplashScreen() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-zinc-950 text-zinc-100">
       <p className="text-lg text-zinc-400">Loading your bake…</p>
-    </main>
-  );
-}
-
-/** Phase 4.2 builds the real one-step runner (`StepRunnerScreen`). This placeholder only proves
- * the `'runner'` view is reachable — both from a fresh `startSession` and from resuming a
- * persisted session on reload — which is exactly what this iteration's DoD and `App.test.tsx`
- * need to demonstrate; the full glanceable step UI is out of scope here (see the phase file's
- * "What NOT to build yet"). */
-function RunnerPlaceholder() {
-  const session = useSessionStore((state) => state.session);
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-2 bg-zinc-950 p-6 text-center text-zinc-100">
-      <h1 className="text-2xl font-semibold">Bake in progress</h1>
-      <p className="text-zinc-400">
-        Step {session ? session.stepIndex + 1 : '—'} of {session?.workflow.length ?? '—'} — the
-        full one-step runner ships in Phase 4.2.
-      </p>
     </main>
   );
 }
@@ -71,7 +54,7 @@ export default function App() {
 
   let screen: ReactNode;
   if (view === 'runner') {
-    screen = <RunnerPlaceholder />;
+    screen = <StepRunnerScreen />;
   } else if (view === 'config' && selectedRecipe) {
     screen = <ConfigScreen recipe={selectedRecipe} />;
   } else {

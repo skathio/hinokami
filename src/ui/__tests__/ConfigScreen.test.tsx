@@ -126,6 +126,7 @@ describe('ConfigScreen — valid inputs (store mocked)', () => {
       session: null,
       migrationNotice: null,
       view: 'config',
+      lastNudgeClamped: false,
       startSession: startSessionSpy,
       advanceStep: vi.fn(),
       backStep: vi.fn(),

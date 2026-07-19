@@ -34,20 +34,28 @@ export function isTerminal(session: BakeSession): boolean {
   return session.stepIndex >= session.workflow.length - 1 && session.status === 'completed';
 }
 
+/** `applyNudge`'s result (review fix, pass 2): `clamped` passes `reschedule`'s real clamp signal
+ * straight through — the UI (`NudgePanel`, via `store.applyNudge`) uses this instead of trying to
+ * infer clamping from a single step's before/after time. */
+export interface ApplyNudgeResult {
+  readonly session: BakeSession;
+  readonly clamped: boolean;
+}
+
 /**
  * Bounded pace-nudge (D14, FR-17). Triggers — never computes — the schedule solver's
  * `reschedule` for every step from `stepIndex` onward. Validates the session belongs to the
  * given `recipe` first (fail loud rather than silently rescheduling against the wrong recipe's
  * session — `sdd.md §6`).
  */
-export function applyNudge(session: BakeSession, deltaMinutes: number, recipe: Recipe): BakeSession {
+export function applyNudge(session: BakeSession, deltaMinutes: number, recipe: Recipe): ApplyNudgeResult {
   if (session.recipeId !== recipe.id) {
     throw new Error(
       `applyNudge: session belongs to recipe "${session.recipeId}", not "${recipe.id}"`,
     );
   }
   const remaining = session.workflow.slice(session.stepIndex);
-  const rescheduledRemaining = reschedule(remaining, deltaMinutes);
+  const { steps: rescheduledRemaining, clamped } = reschedule(remaining, deltaMinutes);
   const workflow = [...session.workflow.slice(0, session.stepIndex), ...rescheduledRemaining];
-  return { ...session, workflow };
+  return { session: { ...session, workflow }, clamped };
 }
