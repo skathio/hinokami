@@ -16,6 +16,7 @@ import RecipeSelectScreen from '@/ui/RecipeSelectScreen';
 import ConfigScreen from '@/ui/ConfigScreen';
 import StepRunnerScreen from '@/ui/StepRunnerScreen';
 import MigrationNotice from '@/ui/MigrationNotice';
+import UpdatePrompt from '@/ui/UpdatePrompt';
 
 function SplashScreen() {
   return (
@@ -66,6 +67,7 @@ export default function App() {
 
   return (
     <>
+      <UpdatePrompt />
       <MigrationNotice />
       {screen}
     </>
