@@ -47,15 +47,36 @@ export const SESSION_STORAGE_KEY = 'hinokami-session-v1';
  * persisted `BakeSession.inputs` shape (ISO string, pizza-only pathway union) on success. */
 export type SessionInputs = WorkflowInputs;
 
+/**
+ * Phase 4.1: which screen `App.tsx` renders. Deliberately NOT part of `PersistedSessionState`/
+ * `partialize` below — it is ephemeral UI-routing state, not part of the `BakeSession` schema.
+ * (Phase 4.2's "Risks" note flags exactly this: if `view` were ever accidentally persisted, a
+ * reload mid-bake could restore onto the wrong screen — keeping it out of `partialize` is what
+ * prevents that class of bug by construction, not by discipline.)
+ */
+export type View = 'recipe-select' | 'config' | 'runner';
+
 export interface SessionStore {
   session: BakeSession | null;
   migrationNotice: string | null;
+  view: View;
   startSession: (recipe: Recipe, inputs: SessionInputs) => GenerateWorkflowResult;
   advanceStep: () => void;
   backStep: () => void;
   applyNudge: (deltaMinutes: number) => void;
   resetSession: () => void;
   dismissMigrationNotice: () => void;
+  /** UI-routing transition (Phase 4.1) — the only way screens change `view` directly (e.g.
+   * recipe-select → config on selection). `startSession`/`resetSession` drive their own `view`
+   * transitions internally rather than requiring callers to remember to call this afterward. */
+  setView: (view: View) => void;
+  /** Called once by `App.tsx` after `persist.rehydrate()` resolves (see the file-level hydration
+   * note above). `view` is never part of the persisted/merged state (it's excluded from
+   * `partialize`), so a restored session would otherwise leave `view` at its initial
+   * `'recipe-select'` default even though a real session was just loaded — this reconciles the
+   * two by routing straight to `'runner'` whenever hydration produced a session. A no-op when
+   * there's no session (clean start correctly stays on `'recipe-select'`). */
+  syncViewAfterHydration: () => void;
 }
 
 type PersistedSessionState = Pick<SessionStore, 'session' | 'migrationNotice'>;
@@ -116,6 +137,7 @@ export const useSessionStore = create<SessionStore>()(
     (set, get) => ({
       session: null,
       migrationNotice: null,
+      view: 'recipe-select',
 
       startSession: (recipe, inputs) => {
         const result = generateWorkflow(recipe, inputs);
@@ -139,7 +161,7 @@ export const useSessionStore = create<SessionStore>()(
           stepIndex: 0,
           status: 'in-progress',
         };
-        set({ session, migrationNotice: null });
+        set({ session, migrationNotice: null, view: 'runner' });
         return result;
       },
 
@@ -167,9 +189,16 @@ export const useSessionStore = create<SessionStore>()(
         set({ session: engineApplyNudge(session, deltaMinutes, recipe) });
       },
 
-      resetSession: () => set({ session: null, migrationNotice: null }),
+      resetSession: () => set({ session: null, migrationNotice: null, view: 'recipe-select' }),
 
       dismissMigrationNotice: () => set({ migrationNotice: null }),
+
+      setView: (view) => set({ view }),
+
+      syncViewAfterHydration: () => {
+        const { session } = get();
+        if (session) set({ view: 'runner' });
+      },
     }),
     {
       name: SESSION_STORAGE_KEY,

@@ -21,6 +21,6 @@ export default defineConfig({
     // `localStorage` shadows jsdom's real one unless explicitly repointed. See the setup file's
     // header comment (`src/store/session.ts` / Phase 3 is the first module to need a working
     // `localStorage` in tests).
-    setupFiles: ['./src/test/setup-jsdom-local-storage.ts'],
+    setupFiles: ['./src/test/setup-jsdom-local-storage.ts', './src/test/setup-rtl.ts'],
   },
 });
