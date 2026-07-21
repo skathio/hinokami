@@ -1,0 +1,33 @@
+name: deploy
+on:
+  push:
+    branches: [main]
+
+permissions: {}   # deny-all default; each job grants only what it needs
+
+jobs:
+  ci:
+    uses: skathio/hashira/.github/workflows/static-webapp-ci.yml@588765efda2fe90cc7d74768a33bce84660d972d
+    permissions:
+      contents: read
+      id-token: write          # required by upload-pages-artifact
+      pages: write              # required by upload-pages-artifact
+      pull-requests: write      # coverage-report sticky comment
+      security-events: write    # CodeQL (when scan_disable enables it)
+    with:
+      node_version: '20'
+      build_command: 'npm run build'    # literal, never derived from PR context (NFR-9)
+      library_ref: '588765efda2fe90cc7d74768a33bce84660d972d'  # MUST match the uses: SHA above
+  deploy:
+    needs: ci   # same-run artifact handoff — omitting this makes deploy start before the
+                # artifact is uploaded and fail with "no artifact found"
+    runs-on: ubuntu-latest
+    environment: github-pages   # the gate — configure with >=1 required reviewer (see below)
+    permissions:
+      contents: read
+      pages: write               # required by deploy-pages
+      id-token: write            # required by deploy-pages for OIDC
+    steps:
+      # pages-deploy is a composite action, not a reusable workflow — no library_ref/self-checkout
+      # needed; pin its own uses: ref the normal way.
+      - uses: skathio/hashira/.github/actions/pages-deploy@588765efda2fe90cc7d74768a33bce84660d972d
