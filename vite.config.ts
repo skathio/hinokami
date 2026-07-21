@@ -37,5 +37,11 @@ export default defineConfig({
     // test fixtures, which Vitest's default glob otherwise picks up and fails to load under
     // this repo's `"type": "module"` — exclude it alongside Vitest's own defaults.
     exclude: [...configDefaults.exclude, '.hashira/**'],
+    coverage: {
+      // hashira's `run-tests-js` CI action requires `npm test` to produce
+      // `coverage/lcov.info` (Phase 5.2 — .somi/plans/hinokami/phases/05-pwa-and-deploy.md).
+      provider: 'v8',
+      reporter: ['lcov', 'text'],
+    },
   },
 });
