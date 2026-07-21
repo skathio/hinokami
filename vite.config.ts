@@ -1,5 +1,6 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from 'vite';
+import { configDefaults } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'node:path';
@@ -31,5 +32,10 @@ export default defineConfig({
     // header comment (`src/store/session.ts` / Phase 3 is the first module to need a working
     // `localStorage` in tests).
     setupFiles: ['./src/test/setup-jsdom-local-storage.ts', './src/test/setup-rtl.ts'],
+    // `.hashira/` is a CI-only self-checkout (D14, the hashira reusable-workflow library's
+    // `library_ref` mechanism) that isn't present locally. It carries hashira's own CommonJS
+    // test fixtures, which Vitest's default glob otherwise picks up and fails to load under
+    // this repo's `"type": "module"` — exclude it alongside Vitest's own defaults.
+    exclude: [...configDefaults.exclude, '.hashira/**'],
   },
 });
