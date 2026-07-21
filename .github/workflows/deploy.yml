@@ -7,7 +7,7 @@ permissions: {}   # deny-all default; each job grants only what it needs
 
 jobs:
   ci:
-    uses: skathio/hashira/.github/workflows/static-webapp-ci.yml@afdceeabd2cdbf1ebfae01cfc4b6d9de9a4645c9
+    uses: skathio/hashira/.github/workflows/static-webapp-ci.yml@e4facc4ca8d8896285931a3b80a1a958584d1a85
     permissions:
       contents: read
       id-token: write          # required by upload-pages-artifact
@@ -17,7 +17,7 @@ jobs:
     with:
       node_version: '20'
       build_command: 'npm run build'    # literal, never derived from PR context (NFR-9)
-      library_ref: 'afdceeabd2cdbf1ebfae01cfc4b6d9de9a4645c9'  # MUST match the uses: SHA above
+      library_ref: 'e4facc4ca8d8896285931a3b80a1a958584d1a85'  # MUST match the uses: SHA above
   deploy:
     needs: ci   # same-run artifact handoff — omitting this makes deploy start before the
                 # artifact is uploaded and fail with "no artifact found"
@@ -30,4 +30,4 @@ jobs:
     steps:
       # pages-deploy is a composite action, not a reusable workflow — no library_ref/self-checkout
       # needed; pin its own uses: ref the normal way.
-      - uses: skathio/hashira/.github/actions/pages-deploy@afdceeabd2cdbf1ebfae01cfc4b6d9de9a4645c9
+      - uses: skathio/hashira/.github/actions/pages-deploy@e4facc4ca8d8896285931a3b80a1a958584d1a85

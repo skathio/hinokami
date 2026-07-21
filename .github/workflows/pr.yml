@@ -6,7 +6,7 @@ permissions: {}
 
 jobs:
   ci:
-    uses: skathio/hashira/.github/workflows/static-webapp-ci.yml@afdceeabd2cdbf1ebfae01cfc4b6d9de9a4645c9
+    uses: skathio/hashira/.github/workflows/static-webapp-ci.yml@e4facc4ca8d8896285931a3b80a1a958584d1a85
     permissions:
       contents: read
       id-token: write
@@ -16,4 +16,4 @@ jobs:
     with:
       node_version: '20'
       build_command: 'npm run build'
-      library_ref: 'afdceeabd2cdbf1ebfae01cfc4b6d9de9a4645c9'
+      library_ref: 'e4facc4ca8d8896285931a3b80a1a958584d1a85'
