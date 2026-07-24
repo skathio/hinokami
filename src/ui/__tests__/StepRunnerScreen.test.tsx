@@ -240,6 +240,53 @@ describe('StepRunnerScreen — unconditional bake temp/time (iteration 1.2)', ()
   });
 });
 
+describe('StepRunnerScreen — live countdown (iteration 2.3)', () => {
+  it('mounts CountdownTimer for the active step, showing its live end time', () => {
+    mockStore(
+      buildSession({
+        workflow: [
+          buildStep({
+            stageId: 'mix',
+            name: 'Mix',
+            clockStartTime: new Date('2026-07-19T10:00:00'),
+            durationMinutes: 60,
+            isEstimate: false,
+          }),
+        ],
+      }),
+    );
+
+    render(<StepRunnerScreen />);
+
+    expect(screen.getByText(/ends ~.*·.*m left/)).toBeInTheDocument();
+  });
+
+  it('an isEstimate active step shows the no-live-count countdown form (regression: unchanged framing)', () => {
+    mockStore(
+      buildSession({
+        workflow: [
+          buildStep({
+            stageId: 'bulk',
+            name: 'Bulk ferment',
+            cue: 'Dough has visibly doubled and feels airy.',
+            clockStartTime: new Date('2026-07-19T10:00:00'),
+            durationMinutes: 240,
+            isEstimate: true,
+          }),
+        ],
+      }),
+    );
+
+    render(<StepRunnerScreen />);
+
+    // Existing estimate framing (ESTIMATE_LABEL/cue) still renders unchanged alongside the new
+    // countdown — this is the regression guard the phase file calls for.
+    expect(screen.getByText(/trust dough feel over the clock/i)).toBeInTheDocument();
+    expect(screen.getByText(/ends ~.*\(estimate\)/)).toBeInTheDocument();
+    expect(screen.queryByText(/m left/)).not.toBeInTheDocument();
+  });
+});
+
 describe('StepRunnerScreen — Recipe Card (iteration 1.2)', () => {
   it('the "Recipe" button opens the Recipe Card', () => {
     mockStore(buildSession());

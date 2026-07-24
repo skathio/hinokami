@@ -14,6 +14,7 @@ import NudgePanel from './NudgePanel';
 import AbandonConfirmDialog from './AbandonConfirmDialog';
 import TimelineOverview from './TimelineOverview';
 import RecipeCard from './RecipeCard';
+import CountdownTimer from './CountdownTimer';
 
 const ESTIMATE_LABEL = 'Estimated — trust dough feel over the clock.';
 
@@ -83,6 +84,7 @@ export default function StepRunnerScreen() {
           <p className="text-sm text-zinc-400">
             Step {session.stepIndex + 1} of {session.workflow.length} · {formatClockTime(currentStep.clockStartTime)}
           </p>
+          <CountdownTimer />
           <h1 className="mt-2 text-3xl font-bold">{currentStep.name}</h1>
           <p className="mt-3 text-lg text-zinc-300">{currentStep.why}</p>
 
