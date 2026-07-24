@@ -121,10 +121,41 @@ function validate(values: FormValues, bounds: RecipeBounds, now: Date): FieldErr
 }
 
 /** `Date` → a `datetime-local` input's expected local-time string, used to pre-fill the target
- * time field when the user accepts a `TargetTooSoon` suggestion. */
+ * time field when the user accepts a `TargetTooSoon` suggestion. Pure formatter — preserves the
+ * input instant exactly (truncating to minute *display* resolution, as `datetime-local` requires,
+ * but never shifting it). Any "make this value safely resubmittable" logic belongs in a separate
+ * helper (see `earliestSelectableTargetValue` below), not here — a formatter that silently moves
+ * its input forward is a trap for any future caller who reasonably expects it to preserve the
+ * value. */
 function toDateTimeLocalValue(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** Fixed buffer added on top of `earliestSelectableTargetValue`'s ceil-to-next-minute — absorbs
+ * real wall-clock time elapsing between when `earliestFeasibleTarget` was computed and when the
+ * user actually clicks "Accept earliest" (a pure ceil alone only covers the sub-minute rounding
+ * itself, not that gap). Isolated as a single named constant since the exact value is a judgment
+ * call, not a derived one (`phases/01-surface-data-and-bug-fix.md` risk pointers). */
+const ACCEPT_EARLIEST_BUFFER_MINUTES = 1;
+
+/** Turns a `TargetTooSoon.earliestFeasibleTarget` into a value that's still genuinely feasible by
+ * the time the resubmission it drives reaches `solveScheduleBackward`'s post-placement guard
+ * (`schedule.ts:230-238`, "is the earliest placed stage already in the past"). Rounds `date` UP
+ * to the next whole minute when it has any seconds/milliseconds remainder (undoing
+ * `toDateTimeLocalValue`'s minute-resolution truncation, which — applied directly to
+ * `earliestFeasibleTarget` — used to round *toward zero* and land the resubmitted value *earlier*
+ * than the real feasibility boundary, retriggering the guard on the very next call), then adds
+ * `bufferMinutes` on top. Only called from `handleAcceptEarliest`, never from
+ * `toDateTimeLocalValue` itself — see that function's doc comment for why the two stay separate. */
+function earliestSelectableTargetValue(
+  date: Date,
+  bufferMinutes: number = ACCEPT_EARLIEST_BUFFER_MINUTES,
+): Date {
+  const msPerMinute = 60_000;
+  const remainderMs = date.getTime() % msPerMinute;
+  const ceiledMs = remainderMs === 0 ? date.getTime() : date.getTime() + (msPerMinute - remainderMs);
+  return new Date(ceiledMs + bufferMinutes * msPerMinute);
 }
 
 export default function ConfigScreen({ recipe }: ConfigScreenProps) {
@@ -177,7 +208,10 @@ export default function ConfigScreen({ recipe }: ConfigScreenProps) {
   }
 
   function handleAcceptEarliest(earliestFeasibleTarget: Date): void {
-    const next: FormValues = { ...values, targetTime: toDateTimeLocalValue(earliestFeasibleTarget) };
+    const next: FormValues = {
+      ...values,
+      targetTime: toDateTimeLocalValue(earliestSelectableTargetValue(earliestFeasibleTarget)),
+    };
     setValues(next);
     attemptGenerate(next);
   }
