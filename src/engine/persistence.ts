@@ -5,7 +5,7 @@
 // hand-constructed inputs and storage-agnostic.
 
 import { isValidRecipeIdShape } from '@/recipes/contract';
-import type { BakeAdaptation } from '@/recipes/contract';
+import type { BakeAdaptation, HowStep } from '@/recipes/contract';
 import type { BakeSession, ScheduledStep } from './types';
 
 const CURRENT_SCHEMA_VERSION = 1 as const;
@@ -42,9 +42,38 @@ function parseRaw(raw: unknown): unknown {
   }
 }
 
+/** Iteration 2.1 (D2, D6): a single `how` entry's shape check. */
+function isValidHowStepShape(raw: unknown): raw is HowStep {
+  if (!isPlainObject(raw)) return false;
+  const { action, ingredientRefs } = raw;
+  return (
+    typeof action === 'string' &&
+    (ingredientRefs === undefined ||
+      (Array.isArray(ingredientRefs) && ingredientRefs.every((ref) => typeof ref === 'string')))
+  );
+}
+
+/** `how` is optional/additive (D2, D6) — a step serialized before this field existed simply has
+ * no `how` key, which is a valid `undefined` here (same discipline `bakeAdaptation` established).
+ * Unlike `bakeAdaptation` (a single object dropped as a whole when malformed), `how` is an array:
+ * a malformed entry (e.g. a non-string in `ingredientRefs`) drops only THAT entry, not the whole
+ * `how` field or the session — it's caveat-display data, not structurally load-bearing. A
+ * present-but-non-array `how` (the field itself is the wrong shape) is dropped in full. An
+ * all-malformed array collapses to `undefined` too (review F-16) — otherwise absent/non-array
+ * `how` would revive to `undefined` while an all-malformed array revived to a truthy `[]`, and a
+ * renderer doing `currentStep.how && <ol>…` would render an empty section for the latter, the
+ * exact outcome the phase's exit criterion forbids. This keeps the invariant 2.2's renderer can
+ * rely on: `how` is either `undefined` or a non-empty array. */
+function reviveHow(raw: unknown): ReadonlyArray<HowStep> | undefined {
+  if (raw === undefined) return undefined;
+  if (!Array.isArray(raw)) return undefined;
+  const filtered = raw.filter(isValidHowStepShape);
+  return filtered.length > 0 ? filtered : undefined;
+}
+
 function reviveScheduledStep(raw: unknown): ScheduledStep | null {
   if (!isPlainObject(raw)) return null;
-  const { stageId, name, why, cue, durationMinutes, clockStartTime, isEstimate } = raw;
+  const { stageId, name, why, cue, how, durationMinutes, clockStartTime, isEstimate } = raw;
   if (typeof stageId !== 'string') return null;
   if (typeof name !== 'string') return null;
   if (typeof why !== 'string') return null;
@@ -62,6 +91,7 @@ function reviveScheduledStep(raw: unknown): ScheduledStep | null {
     name,
     why,
     cue: cue as string | undefined,
+    how: reviveHow(how),
     durationMinutes,
     clockStartTime: parsedClockStartTime,
     isEstimate,

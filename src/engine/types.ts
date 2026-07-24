@@ -1,14 +1,17 @@
 // Engine-side types NOT on the `Recipe` interface (P1 file layout). These are the shapes the
 // engine produces/consumes across scheduling, progression, and persistence.
 
-import type { BakeAdaptation, PathwayRef, RecipeId, StageRef } from '@/recipes/contract';
+import type { BakeAdaptation, HowStep, PathwayRef, RecipeId, StageRef } from '@/recipes/contract';
 
-/** One step in a generated workflow, before real clock times are attached. */
+/** One step in a generated workflow, before real clock times are attached. `how` is threaded
+ * unchanged from `Stage.how` (D2, D6) — optional/additive, absent on any step whose stage
+ * doesn't declare it. */
 export interface Step {
   readonly stageId: StageRef;
   readonly name: string;
   readonly why: string;
   readonly cue?: string;
+  readonly how?: ReadonlyArray<HowStep>;
   readonly durationMinutes: number;
 }
 

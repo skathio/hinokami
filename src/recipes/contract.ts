@@ -88,9 +88,19 @@ export interface ElasticBounds {
   readonly maxMinutes: number;
 }
 
+/** One authored action within a stage's `how` (D2, D6). `ingredientRefs` names must match a
+ * FormulaIngredient.name from the recipe's formula (or the active pathway's override) exactly —
+ * resolved against scaledIngredients at render time (NF7: never hardcode a quantity). */
+export interface HowStep {
+  readonly action: string;
+  readonly ingredientRefs?: ReadonlyArray<string>;
+}
+
 /** One ordered stage in a recipe's workflow (FR-7). `why` is the required 1-2 sentence
  * teaching string (FR-14); `cue` is the optional readiness cue (FR-15) — its presence, not the
- * stage's `type`, is what the engine uses to mark a step `isEstimate` (see `workflow.ts`). */
+ * stage's `type`, is what the engine uses to mark a step `isEstimate` (see `workflow.ts`). `how`
+ * is the optional structured how-to content (D2, D6) — additive (contract §8): a stage that
+ * omits it renders exactly as it did before this field existed. */
 export interface Stage {
   readonly id: StageRef;
   readonly name: string;
@@ -98,6 +108,7 @@ export interface Stage {
   readonly why: string;
   readonly cue?: string;
   readonly elastic?: ElasticBounds;
+  readonly how?: ReadonlyArray<HowStep>;
 }
 
 /** One fermentation/scheduling pathway a recipe offers (e.g. same-day vs. cold-ferment, D6).

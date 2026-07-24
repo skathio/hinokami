@@ -220,6 +220,7 @@ export function solveScheduleBackward(
       name: stage.name,
       why: stage.why,
       cue: stage.cue,
+      how: stage.how,
       durationMinutes,
       clockStartTime,
       isEstimate: stage.cue !== undefined,

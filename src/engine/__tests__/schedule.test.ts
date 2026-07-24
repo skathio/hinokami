@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { reschedule, solveScheduleBackward } from '../schedule';
 import { constantAdaptBake, stageDurationFromTable } from './fixtures';
-import type { Recipe, RecipeBounds, Stage } from '@/recipes/contract';
+import type { HowStep, Recipe, RecipeBounds, Stage } from '@/recipes/contract';
 import { createRecipeId } from '@/recipes/contract';
 import type { ScheduledStep, WorkflowInputs } from '../types';
 
@@ -160,6 +160,44 @@ describe('solveScheduleBackward', () => {
         `expected TargetTooSoon, got a placed schedule with earliest start ${result.steps[0]?.clockStartTime.toISOString()}`,
       );
     }
+  });
+
+  describe('how threading (D2, D6, iteration 2.1)', () => {
+    it("threads a stage's how array unchanged onto its ScheduledStep", () => {
+      const how: HowStep[] = [
+        { action: 'Combine flour and water', ingredientRefs: ['Flour', 'Water'] },
+        { action: 'Rest 20 minutes' },
+      ];
+      const stages: Stage[] = [
+        { id: 'mix', name: 'Mix', type: 'prep', why: 'why-mix', how },
+        { id: 'bake', name: 'Bake', type: 'bake', why: 'why-bake' },
+      ];
+      const recipe = buildRecipe({ stages, durations: { mix: () => 15 } });
+      const inputs = baseInputs();
+
+      const result = solveScheduleBackward(recipe, inputs, 10, NOW);
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error('expected ok result');
+      const mixStep = result.steps.find((s) => s.stageId === 'mix');
+      expect(mixStep?.how).toEqual(how);
+    });
+
+    it('leaves how undefined on a ScheduledStep whose stage declares none', () => {
+      const stages: Stage[] = [
+        { id: 'mix', name: 'Mix', type: 'prep', why: 'why-mix' },
+        { id: 'bake', name: 'Bake', type: 'bake', why: 'why-bake' },
+      ];
+      const recipe = buildRecipe({ stages, durations: { mix: () => 15 } });
+      const inputs = baseInputs();
+
+      const result = solveScheduleBackward(recipe, inputs, 10, NOW);
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error('expected ok result');
+      const mixStep = result.steps.find((s) => s.stageId === 'mix');
+      expect(mixStep?.how).toBeUndefined();
+    });
   });
 
   describe('elastic-stage slack absorption (pass-2 fix, Major 1)', () => {
