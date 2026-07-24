@@ -33,9 +33,11 @@ import {
   back,
   generateWorkflow,
   migrate,
+  resolveScaledIngredients,
   serialize,
   type BakeSession,
   type GenerateWorkflowResult,
+  type ScaledIngredient,
   type WorkflowInputs,
 } from '@/engine';
 
@@ -68,6 +70,13 @@ export interface SessionStore {
    * different points in the remaining schedule. Ephemeral, deliberately excluded from
    * `PersistedSessionState`/`partialize` below — same class as `view`. */
   lastNudgeClamped: boolean;
+  /** Iteration 1.1: `generateWorkflow`'s scaled ingredient grams (`ScaledIngredient[]`), kept as
+   * ephemeral store state so the Recipe Card / bake-spec UI (iteration 1.2+) can render them
+   * without recomputing engine logic themselves. Same ephemeral class as `view`/
+   * `lastNudgeClamped`: excluded from `PersistedSessionState`/`partialize` below (D5) — it's a
+   * pure function of already-persisted `inputs` plus the recipe's formula, so it's recomputed on
+   * `startSession`/rehydration rather than stored. `null` until a session exists. */
+  scaledIngredients: ReadonlyArray<ScaledIngredient> | null;
   startSession: (recipe: Recipe, inputs: SessionInputs) => GenerateWorkflowResult;
   advanceStep: () => void;
   backStep: () => void;
@@ -85,6 +94,23 @@ export interface SessionStore {
    * two by routing straight to `'runner'` whenever hydration produced a session. A no-op when
    * there's no session (clean start correctly stays on `'recipe-select'`). */
   syncViewAfterHydration: () => void;
+  /** Iteration 1.1 (plan review F-2 Major / F-7): recomputes `scaledIngredients` from the
+   * rehydrated session's `inputs` after `persist.rehydrate()` resolves. Kept as a **separate**
+   * action from `syncViewAfterHydration` rather than folded into it, so that method's
+   * documented "reconcile `view`" responsibility doesn't silently grow a second, unrelated job.
+   * `App.tsx`'s `onFinishHydration` calls both, back to back.
+   *
+   * **Must never throw.** It runs before `setHydrated(true)` in `App.tsx` — an unguarded throw
+   * here would leave `hydrated` stuck `false` forever, permanently pinning the app on
+   * `SplashScreen` with no escape. A persisted session's `recipeId` is only shape-validated by
+   * `restore`/`migrate` (`isValidRecipeIdShape`), never checked against `recipeRegistry`
+   * membership, so a valid-shaped but unregistered id (tampered localStorage, or a future
+   * recipe removal) is a real reachable case here — when `recipeRegistry.lookup` returns
+   * `undefined`, this sets `scaledIngredients` to `null` and returns, deliberately departing
+   * from `applyNudge`'s fail-loud precedent below (that only ever runs from a user-triggered
+   * button press, where a thrown error is a normal, recoverable in-app failure — hydration is
+   * startup-critical and must degrade gracefully instead). A no-op when there's no session. */
+  recomputeScaledIngredients: () => void;
 }
 
 type PersistedSessionState = Pick<SessionStore, 'session' | 'migrationNotice'>;
@@ -147,6 +173,7 @@ export const useSessionStore = create<SessionStore>()(
       migrationNotice: null,
       view: 'recipe-select',
       lastNudgeClamped: false,
+      scaledIngredients: null,
 
       startSession: (recipe, inputs) => {
         const result = generateWorkflow(recipe, inputs);
@@ -171,7 +198,13 @@ export const useSessionStore = create<SessionStore>()(
           status: 'in-progress',
           bakeAdaptation: result.bakeAdaptation,
         };
-        set({ session, migrationNotice: null, view: 'runner', lastNudgeClamped: false });
+        set({
+          session,
+          migrationNotice: null,
+          view: 'runner',
+          lastNudgeClamped: false,
+          scaledIngredients: result.scaledIngredients,
+        });
         return result;
       },
 
@@ -201,7 +234,13 @@ export const useSessionStore = create<SessionStore>()(
       },
 
       resetSession: () =>
-        set({ session: null, migrationNotice: null, view: 'recipe-select', lastNudgeClamped: false }),
+        set({
+          session: null,
+          migrationNotice: null,
+          view: 'recipe-select',
+          lastNudgeClamped: false,
+          scaledIngredients: null,
+        }),
 
       dismissMigrationNotice: () => set({ migrationNotice: null }),
 
@@ -210,6 +249,25 @@ export const useSessionStore = create<SessionStore>()(
       syncViewAfterHydration: () => {
         const { session } = get();
         if (session) set({ view: 'runner' });
+      },
+
+      recomputeScaledIngredients: () => {
+        const { session } = get();
+        if (!session) return;
+        const recipe = recipeRegistry.lookup(session.recipeId);
+        if (!recipe) {
+          // Plan review F-2 (Major): a valid-shaped but unregistered `recipeId` must never
+          // throw here — see the interface doc comment above for why. Explicitly (re)set to
+          // `null` rather than leaving whatever was already there, so the invariant holds
+          // regardless of prior store state.
+          set({ scaledIngredients: null });
+          return;
+        }
+        const scaledIngredients = resolveScaledIngredients(recipe, session.inputs.pathway, {
+          ballCount: session.inputs.ballCount,
+          ballWeightG: session.inputs.ballWeightG,
+        });
+        set({ scaledIngredients });
       },
     }),
     {

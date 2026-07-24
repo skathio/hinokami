@@ -127,6 +127,7 @@ describe('ConfigScreen — valid inputs (store mocked)', () => {
       migrationNotice: null,
       view: 'config',
       lastNudgeClamped: false,
+      scaledIngredients: null,
       startSession: startSessionSpy,
       advanceStep: vi.fn(),
       backStep: vi.fn(),
@@ -135,6 +136,7 @@ describe('ConfigScreen — valid inputs (store mocked)', () => {
       dismissMigrationNotice: vi.fn(),
       setView: vi.fn(),
       syncViewAfterHydration: vi.fn(),
+      recomputeScaledIngredients: vi.fn(),
     };
     vi.spyOn(sessionStoreModule, 'useSessionStore').mockImplementation(
       ((selector: (state: SessionStore) => unknown) => selector(fakeState)) as typeof useSessionStore,

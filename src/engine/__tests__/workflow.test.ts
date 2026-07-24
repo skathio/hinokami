@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateWorkflow } from '../workflow';
+import { generateWorkflow, resolveScaledIngredients } from '../workflow';
 import { constantAdaptBake, stageDurationFromTable } from './fixtures';
 import type { Recipe, RecipeBounds, Stage } from '@/recipes/contract';
 import { createRecipeId } from '@/recipes/contract';
@@ -52,6 +52,32 @@ function baseInputs(overrides: Partial<WorkflowInputs> = {}): WorkflowInputs {
   };
 }
 
+// Shared by both the `generateWorkflow` pathway-conditional-formula tests and the
+// `resolveScaledIngredients` unit tests below — a stub recipe with two pathways: one declares a
+// formula override, one doesn't. Both directions of `pathway.formula ?? recipe.formula` must be
+// exercised — a backward implementation (`recipe.formula ?? pathway.formula`) would silently
+// break the no-override pathway, since `recipe.formula` is never undefined and would always win.
+const recipeFormula = { ingredients: [{ name: 'Flour', percent: 100 }, { name: 'Water', percent: 60 }] };
+const overrideFormula = { ingredients: [{ name: 'Flour', percent: 100 }, { name: 'Water', percent: 70 }] };
+
+function buildTwoPathwayRecipe(): Recipe {
+  return {
+    contractVersion: 1,
+    id: createRecipeId('stub-formula-recipe'),
+    name: 'Stub formula recipe',
+    description: 'A stub recipe for the pathway-formula-override unit test.',
+    formula: recipeFormula,
+    bounds: BOUNDS,
+    stages: STAGES,
+    pathways: [
+      { id: 'no-override', name: 'No override', stageIds: ['mix', 'bake'] },
+      { id: 'with-override', name: 'With override', stageIds: ['mix', 'bake'], formula: overrideFormula },
+    ],
+    stageDuration: stageDurationFromTable({ mix: () => 15 }),
+    adaptBake: constantAdaptBake(10, 250, BOUNDS.ovenMin),
+  };
+}
+
 describe('generateWorkflow', () => {
   it('happy path: scales ingredients, adapts the bake, and solves the schedule', () => {
     const recipe = buildRecipe();
@@ -88,31 +114,6 @@ describe('generateWorkflow', () => {
   });
 
   describe('pathway-conditional formula (P7)', () => {
-    // A stub recipe with two pathways: one declares a formula override, one doesn't. Both
-    // directions of `pathway.formula ?? recipe.formula` must be exercised — a backward
-    // implementation (`recipe.formula ?? pathway.formula`) would silently break the no-override
-    // pathway, since `recipe.formula` is never undefined and would always win.
-    const recipeFormula = { ingredients: [{ name: 'Flour', percent: 100 }, { name: 'Water', percent: 60 }] };
-    const overrideFormula = { ingredients: [{ name: 'Flour', percent: 100 }, { name: 'Water', percent: 70 }] };
-
-    function buildTwoPathwayRecipe(): Recipe {
-      return {
-        contractVersion: 1,
-        id: createRecipeId('stub-formula-recipe'),
-        name: 'Stub formula recipe',
-        description: 'A stub recipe for the pathway-formula-override unit test.',
-        formula: recipeFormula,
-        bounds: BOUNDS,
-        stages: STAGES,
-        pathways: [
-          { id: 'no-override', name: 'No override', stageIds: ['mix', 'bake'] },
-          { id: 'with-override', name: 'With override', stageIds: ['mix', 'bake'], formula: overrideFormula },
-        ],
-        stageDuration: stageDurationFromTable({ mix: () => 15 }),
-        adaptBake: constantAdaptBake(10, 250, BOUNDS.ovenMin),
-      };
-    }
-
     it('scales the pathway override formula when present', () => {
       const recipe = buildTwoPathwayRecipe();
       const result = generateWorkflow(recipe, baseInputs({ pathway: 'with-override' }), NOW);
@@ -136,5 +137,41 @@ describe('generateWorkflow', () => {
       // water @ 60% = 187.5g — recipe.formula's percentage, not the override's 70%.
       expect(water?.grams).toBeCloseTo(187.5, 1);
     });
+  });
+});
+
+describe('resolveScaledIngredients (iteration 1.1 extraction)', () => {
+  // Directly unit-tests the function `generateWorkflow` now delegates to, and that
+  // `store/session.ts`'s `recomputeScaledIngredients` calls on rehydration — the rehydration
+  // recompute path needs the exact same pathway-override-fallback rule `generateWorkflow` uses,
+  // which is the whole reason this logic was extracted rather than duplicated inline.
+
+  it('scales recipe.formula for a recognized pathway that declares no override (default formula)', () => {
+    const recipe = buildRecipe();
+    const result = resolveScaledIngredients(recipe, 'test-pathway', { ballCount: 2, ballWeightG: 250 });
+
+    const water = result.find((i) => i.name === 'Water');
+    // batch: 2 balls x 250g = 500g total; totalPercent = 160; flour = 500/1.6 = 312.5g;
+    // water @ 60% = 187.5g.
+    expect(water?.grams).toBeCloseTo(187.5, 1);
+  });
+
+  it('scales the pathway override formula when the pathway declares one', () => {
+    const recipe = buildTwoPathwayRecipe();
+    const result = resolveScaledIngredients(recipe, 'with-override', { ballCount: 2, ballWeightG: 250 });
+
+    const water = result.find((i) => i.name === 'Water');
+    // batch: 500g total; totalPercent = 170; flour = 500/1.7 ≈ 294.12g; water @ 70% ≈ 205.88g.
+    expect(water?.grams).toBeCloseTo(205.9, 1);
+  });
+
+  it('falls back to recipe.formula when the pathway id is unrecognized', () => {
+    const recipe = buildRecipe();
+    const result = resolveScaledIngredients(recipe, 'does-not-exist', { ballCount: 2, ballWeightG: 250 });
+
+    const water = result.find((i) => i.name === 'Water');
+    // Same as the default-formula case above — an unrecognized pathway id falls back to
+    // recipe.formula exactly like "no override present" does, rather than throwing.
+    expect(water?.grams).toBeCloseTo(187.5, 1);
   });
 });

@@ -59,6 +59,7 @@ function mockStore(session: BakeSession | null, overrides: Partial<SessionStore>
     migrationNotice: null,
     view: 'runner',
     lastNudgeClamped: false,
+    scaledIngredients: null,
     startSession: vi.fn(),
     advanceStep: vi.fn(),
     backStep: vi.fn(),
@@ -67,6 +68,7 @@ function mockStore(session: BakeSession | null, overrides: Partial<SessionStore>
     dismissMigrationNotice: vi.fn(),
     setView: vi.fn(),
     syncViewAfterHydration: vi.fn(),
+    recomputeScaledIngredients: vi.fn(),
     ...overrides,
   };
   vi.spyOn(sessionStoreModule, 'useSessionStore').mockImplementation(

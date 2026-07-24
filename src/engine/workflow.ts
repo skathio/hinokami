@@ -3,8 +3,8 @@
 // called before scheduling (restart-pass-2 fix: `solveScheduleBackward` receives the resolved
 // bake time as a plain parameter, never resolving it itself).
 
-import type { BakeAdaptation, OvenContext, OvenTooCold, Recipe } from '@/recipes/contract';
-import { scaleFormula } from './scaling';
+import type { BakeAdaptation, OvenContext, OvenTooCold, PathwayRef, Recipe } from '@/recipes/contract';
+import { scaleFormula, type Batch } from './scaling';
 import { solveScheduleBackward } from './schedule';
 import type { ScaledIngredient, ScheduledStep, TargetTooSoon, WorkflowInputs } from './types';
 
@@ -17,17 +17,30 @@ export type GenerateWorkflowResult =
     }
   | { ok: false; error: OvenTooCold | TargetTooSoon };
 
+/**
+ * P7: a pathway may override the recipe's formula (e.g. cold-ferment's reduced yeast dose).
+ * Falls back to `recipe.formula` when the pathway declares no override, or when `pathwayId`
+ * itself is unrecognized (the schedule solver throws loudly on that case; scaling doesn't need
+ * to duplicate that check). Extracted (iteration 1.1) so `store/session.ts`'s rehydration
+ * recompute (`recomputeScaledIngredients`) shares this exact rule instead of a second, drifting
+ * copy — the same class of duplication `RecipeBounds.coldFermentHoursMin/Max`'s single-source-
+ * of-truth fix exists to avoid.
+ */
+export function resolveScaledIngredients(
+  recipe: Recipe,
+  pathwayId: PathwayRef,
+  batch: Batch,
+): ReadonlyArray<ScaledIngredient> {
+  const pathway = recipe.pathways.find((p) => p.id === pathwayId);
+  return scaleFormula(pathway?.formula ?? recipe.formula, batch);
+}
+
 export function generateWorkflow(
   recipe: Recipe,
   inputs: WorkflowInputs,
   now: Date = new Date(),
 ): GenerateWorkflowResult {
-  // P7: a pathway may override the recipe's formula (e.g. cold-ferment's reduced yeast dose).
-  // Falls back to recipe.formula when the pathway declares no override, or when the pathway id
-  // itself is unrecognized (the schedule solver below throws loudly on that case; scaling
-  // doesn't need to duplicate that check).
-  const pathway = recipe.pathways.find((p) => p.id === inputs.pathway);
-  const scaledIngredients = scaleFormula(pathway?.formula ?? recipe.formula, {
+  const scaledIngredients = resolveScaledIngredients(recipe, inputs.pathway, {
     ballCount: inputs.ballCount,
     ballWeightG: inputs.ballWeightG,
   });

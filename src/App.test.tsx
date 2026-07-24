@@ -60,7 +60,12 @@ function buildRawSession(overrides: Record<string, unknown> = {}): Record<string
 }
 
 function resetStore(): void {
-  useSessionStore.setState({ session: null, migrationNotice: null, view: 'recipe-select' });
+  useSessionStore.setState({
+    session: null,
+    migrationNotice: null,
+    view: 'recipe-select',
+    scaledIngredients: null,
+  });
 }
 
 beforeEach(() => {
@@ -106,5 +111,28 @@ describe('App — startup rehydration', () => {
     expect(useSessionStore.getState().session?.sessionKey).toBe('app-test-session-1');
     expect(useSessionStore.getState().session?.stepIndex).toBe(0);
     expect(useSessionStore.getState().view).toBe('runner');
+  });
+
+  // Plan review F-2 (Major): a real reproduction of the regression this finding guards against
+  // — not just a `store/session.ts` unit test. `recomputeScaledIngredients` runs inside
+  // `onFinishHydration`, before `setHydrated(true)`; an unguarded throw there (from an
+  // unregistered `recipeId`) would leave `hydrated` stuck `false` forever, permanently pinning
+  // the app on `SplashScreen` with no escape.
+  it('leaves SplashScreen (does not hang) when the persisted session has a valid-shaped but ' +
+    'unregistered recipeId', async () => {
+    const raw = buildRawSession({ recipeId: 'not-a-registered-recipe' });
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(raw));
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/loading your bake/i)).not.toBeInTheDocument();
+    });
+
+    // The session itself still restores and renders the runner (`workflow`/`why`/`cue`/times
+    // are all already persisted per step, self-contained) — only the `scaledIngredients`
+    // recompute silently no-ops for the unrecognized recipe.
+    expect(screen.getByRole('heading', { name: 'Mix' })).toBeInTheDocument();
+    expect(useSessionStore.getState().scaledIngredients).toBeNull();
   });
 });

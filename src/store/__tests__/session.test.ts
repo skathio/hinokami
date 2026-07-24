@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { SESSION_STORAGE_KEY, useSessionStore } from '../session';
 import { pizzaRecipe, PIZZA_CONTENT_VERSION } from '@/recipes/pizza';
-import type { BakeSession, WorkflowInputs } from '@/engine';
+import { resolveScaledIngredients, type BakeSession, type WorkflowInputs } from '@/engine';
 
 function buildInputs(overrides: Partial<WorkflowInputs> = {}): WorkflowInputs {
   return {
@@ -62,7 +62,7 @@ function buildRawSession(overrides: Record<string, unknown> = {}): Record<string
 }
 
 function resetStore(): void {
-  useSessionStore.setState({ session: null, migrationNotice: null });
+  useSessionStore.setState({ session: null, migrationNotice: null, scaledIngredients: null });
 }
 
 beforeEach(() => {
@@ -81,6 +81,12 @@ describe('useSessionStore — round trip', () => {
     // caveated bake's `why`/caveat text can be shown on reload, not just right after generation.
     expect(started?.bakeAdaptation).toBeDefined();
     expect(started?.bakeAdaptation?.bakeTempC).toBe(250);
+    // Iteration 1.1: `scaledIngredients` is non-null and correct immediately after `startSession`
+    // — the same value `generateWorkflow` returned, just newly kept on the store.
+    if (!result.ok) throw new Error('expected ok result');
+    const startedScaledIngredients = useSessionStore.getState().scaledIngredients;
+    expect(startedScaledIngredients).not.toBeNull();
+    expect(startedScaledIngredients).toEqual(result.scaledIngredients);
 
     await useSessionStore.persist.rehydrate();
 
@@ -93,6 +99,12 @@ describe('useSessionStore — round trip', () => {
     expect(restored?.inputs).toEqual(started?.inputs);
     expect(restored?.bakeAdaptation).toEqual(started?.bakeAdaptation);
     expect(useSessionStore.getState().migrationNotice).toBeNull();
+
+    // `persist.rehydrate()` alone does not recompute `scaledIngredients` — that's `App.tsx`'s
+    // `onFinishHydration` calling the new, separate `recomputeScaledIngredients` action (this
+    // store test exercises the action directly, mirroring how `App.tsx` invokes it).
+    useSessionStore.getState().recomputeScaledIngredients();
+    expect(useSessionStore.getState().scaledIngredients).toEqual(startedScaledIngredients);
   });
 
   it('persists under the fixed key "hinokami-session-v1", as raw session JSON (no store envelope)', () => {
@@ -105,6 +117,56 @@ describe('useSessionStore — round trip', () => {
     // not Zustand's own `{state, version}` persist envelope.
     expect(parsed.schemaVersion).toBe(1);
     expect(parsed.recipeId).toBe(pizzaRecipe.id);
+  });
+});
+
+describe('useSessionStore — scaledIngredients (iteration 1.1)', () => {
+  it('recomputes scaledIngredients on rehydration, equal to what a fresh startSession with the ' +
+    'same inputs would have produced', async () => {
+    const raw = buildRawSession();
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(raw));
+
+    await useSessionStore.persist.rehydrate();
+    expect(useSessionStore.getState().scaledIngredients).toBeNull(); // not recomputed yet
+
+    useSessionStore.getState().recomputeScaledIngredients();
+
+    const scaledIngredients = useSessionStore.getState().scaledIngredients;
+    expect(scaledIngredients).not.toBeNull();
+
+    const rawInputs = raw.inputs as BakeSession['inputs'];
+    const expected = resolveScaledIngredients(pizzaRecipe, rawInputs.pathway, {
+      ballCount: rawInputs.ballCount,
+      ballWeightG: rawInputs.ballWeightG,
+    });
+    expect(scaledIngredients).toEqual(expected);
+  });
+
+  it('resetSession clears scaledIngredients to null', () => {
+    useSessionStore.getState().startSession(pizzaRecipe, buildInputs());
+    expect(useSessionStore.getState().scaledIngredients).not.toBeNull();
+
+    useSessionStore.getState().resetSession();
+
+    expect(useSessionStore.getState().scaledIngredients).toBeNull();
+  });
+
+  it('recomputeScaledIngredients does not throw and leaves scaledIngredients null for a ' +
+    'valid-shaped but unregistered recipeId (plan review F-2, Major)', async () => {
+    // Mirrors `buildRawSession`, but with a `recipeId` that passes shape validation
+    // (`isValidRecipeIdShape`) yet was never registered via `recipeRegistry.register` — the
+    // real reachable case (tampered localStorage, or a future recipe rename/removal) this
+    // finding guards against.
+    const raw = buildRawSession({ recipeId: 'not-a-registered-recipe' });
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(raw));
+
+    await useSessionStore.persist.rehydrate();
+    // The session itself still restores — only the registry lookup for the ingredient
+    // recompute fails. Confirms this isn't a `migrate()`/`restore()` rejection in disguise.
+    expect(useSessionStore.getState().session).not.toBeNull();
+
+    expect(() => useSessionStore.getState().recomputeScaledIngredients()).not.toThrow();
+    expect(useSessionStore.getState().scaledIngredients).toBeNull();
   });
 });
 

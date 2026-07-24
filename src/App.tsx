@@ -38,6 +38,10 @@ export default function App() {
       // `view` is deliberately excluded from the persisted slice, so it's reconciled explicitly
       // here rather than by the merge itself.
       useSessionStore.getState().syncViewAfterHydration();
+      // Iteration 1.1: `scaledIngredients` is likewise excluded from the persisted slice (D5 —
+      // derivable, recomputed rather than stored). Non-throwing by construction (plan review
+      // F-2) — safe to call unconditionally here, before `setHydrated(true)` below.
+      useSessionStore.getState().recomputeScaledIngredients();
       setHydrated(true);
     });
     void useSessionStore.persist.rehydrate();

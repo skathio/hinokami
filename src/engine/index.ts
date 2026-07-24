@@ -17,7 +17,7 @@ export type { RescheduleResult } from './schedule';
 export { reschedule, solveScheduleBackward } from './schedule';
 
 export type { GenerateWorkflowResult } from './workflow';
-export { generateWorkflow } from './workflow';
+export { generateWorkflow, resolveScaledIngredients } from './workflow';
 
 export type { ApplyNudgeResult } from './progression';
 export { advance, applyNudge, back, isStepActive, isTerminal } from './progression';
