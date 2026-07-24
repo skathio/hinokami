@@ -13,6 +13,7 @@ import WakeLockHint from './WakeLockHint';
 import NudgePanel from './NudgePanel';
 import AbandonConfirmDialog from './AbandonConfirmDialog';
 import TimelineOverview from './TimelineOverview';
+import RecipeCard from './RecipeCard';
 
 const ESTIMATE_LABEL = 'Estimated — trust dough feel over the clock.';
 
@@ -37,6 +38,7 @@ export default function StepRunnerScreen() {
   const [nudgeOpen, setNudgeOpen] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [abandonOpen, setAbandonOpen] = useState(false);
+  const [recipeCardOpen, setRecipeCardOpen] = useState(false);
 
   // Called unconditionally, before any early return, per the rules of hooks — `isActive` is
   // `false` both when there's no session yet and once the bake completes, either of which
@@ -64,7 +66,13 @@ export default function StepRunnerScreen() {
   }
 
   const currentStep = session.workflow[session.stepIndex];
-  const caveat = currentStep.stageId === BAKE_STAGE_ID ? session.bakeAdaptation?.caveat : undefined;
+  const isBakeStep = currentStep.stageId === BAKE_STAGE_ID;
+  // Iteration 1.2: the adapted bake temp/time renders unconditionally whenever
+  // `bakeAdaptation` exists — previously only `.caveat` rendered, and only when present
+  // (`session.ts:172` computes the spec, but the UI discarded it). `caveat` stays a separate,
+  // narrower condition (present only for a best-effort 200-219 °C bake) — unchanged below.
+  const bakeSpec = isBakeStep ? session.bakeAdaptation : undefined;
+  const caveat = isBakeStep ? session.bakeAdaptation?.caveat : undefined;
 
   return (
     <main className="flex min-h-screen flex-col bg-zinc-950 text-zinc-100">
@@ -82,6 +90,14 @@ export default function StepRunnerScreen() {
             <div className="mt-4 rounded-md border border-zinc-700 bg-zinc-900 p-4">
               <p className="text-sm font-medium text-zinc-400">{ESTIMATE_LABEL}</p>
               {currentStep.cue && <p className="mt-1 text-zinc-100">{currentStep.cue}</p>}
+            </div>
+          )}
+
+          {bakeSpec && (
+            <div className="mt-4 rounded-md border border-zinc-700 bg-zinc-900 p-4">
+              <p className="text-lg font-semibold text-zinc-100">
+                {bakeSpec.bakeTempC}°C for {bakeSpec.bakeTimeMinutes} min
+              </p>
             </div>
           )}
 
@@ -129,6 +145,13 @@ export default function StepRunnerScreen() {
           <div className="flex gap-3">
             <button
               type="button"
+              onClick={() => setRecipeCardOpen(true)}
+              className="min-h-11 flex-1 rounded-md border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800"
+            >
+              Recipe
+            </button>
+            <button
+              type="button"
               onClick={() => setTimelineOpen(true)}
               className="min-h-11 flex-1 rounded-md border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800"
             >
@@ -152,6 +175,8 @@ export default function StepRunnerScreen() {
           onClose={() => setTimelineOpen(false)}
         />
       )}
+
+      {recipeCardOpen && <RecipeCard onClose={() => setRecipeCardOpen(false)} />}
 
       {abandonOpen && <AbandonConfirmDialog onCancel={() => setAbandonOpen(false)} />}
     </main>

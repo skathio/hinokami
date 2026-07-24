@@ -192,6 +192,78 @@ describe('StepRunnerScreen — bake caveat (Phase 4.2 plan-change, Task 1)', () 
   });
 });
 
+describe('StepRunnerScreen — unconditional bake temp/time (iteration 1.2)', () => {
+  it('shows bakeTempC/bakeTimeMinutes on the bake step with no caveat present (today\'s gap)', () => {
+    mockStore(
+      buildSession({
+        workflow: [buildStep({ stageId: 'bake', name: 'Bake', isEstimate: false })],
+        bakeAdaptation: { bakeTempC: 280, bakeTimeMinutes: 8 },
+      }),
+    );
+
+    render(<StepRunnerScreen />);
+
+    expect(screen.getByText(/280°C for 8 min/)).toBeInTheDocument();
+  });
+
+  it('shows bakeTempC/bakeTimeMinutes on the bake step alongside a caveat when one is present (regression, unchanged)', () => {
+    mockStore(
+      buildSession({
+        workflow: [buildStep({ stageId: 'bake', name: 'Bake', isEstimate: false })],
+        bakeAdaptation: {
+          bakeTempC: 210,
+          bakeTimeMinutes: 12,
+          caveat: 'Your oven runs cooler than ideal — results may be less crisp than a hotter oven.',
+        },
+      }),
+    );
+
+    render(<StepRunnerScreen />);
+
+    expect(screen.getByText(/210°C for 12 min/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/results may be less crisp than a hotter oven/i),
+    ).toBeInTheDocument();
+  });
+
+  it('does not show bake temp/time on a non-bake step even when bakeAdaptation exists', () => {
+    mockStore(
+      buildSession({
+        workflow: [buildStep({ stageId: 'mix', name: 'Mix', isEstimate: false })],
+        bakeAdaptation: { bakeTempC: 280, bakeTimeMinutes: 8 },
+      }),
+    );
+
+    render(<StepRunnerScreen />);
+
+    expect(screen.queryByText(/280°C for 8 min/)).not.toBeInTheDocument();
+  });
+});
+
+describe('StepRunnerScreen — Recipe Card (iteration 1.2)', () => {
+  it('the "Recipe" button opens the Recipe Card', () => {
+    mockStore(buildSession());
+
+    render(<StepRunnerScreen />);
+
+    expect(screen.queryByRole('dialog', { name: 'Recipe card' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^recipe$/i }));
+    expect(screen.getByRole('dialog', { name: 'Recipe card' })).toBeInTheDocument();
+  });
+
+  it('closing the Recipe Card (its Close button) removes it from the screen', () => {
+    mockStore(buildSession());
+
+    render(<StepRunnerScreen />);
+
+    fireEvent.click(screen.getByRole('button', { name: /^recipe$/i }));
+    expect(screen.getByRole('dialog', { name: 'Recipe card' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^close$/i }));
+    expect(screen.queryByRole('dialog', { name: 'Recipe card' })).not.toBeInTheDocument();
+  });
+});
+
 describe('StepRunnerScreen — advance / back (FR-7)', () => {
   it('"Done — next step" calls store.advanceStep', () => {
     const state = mockStore(buildSession());
