@@ -45,26 +45,26 @@ export default function NudgePanel({ onClose }: NudgePanelProps) {
   });
 
   return (
-    <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-4">
+    <div className="rounded-lg border border-charcoal-700 bg-charcoal-900 p-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-zinc-200">Nudge pace</p>
+        <p className="text-sm font-medium text-charcoal-200">Nudge pace</p>
         <button
           type="button"
           onClick={onClose}
           aria-label="Close nudge panel"
-          className="min-h-11 min-w-11 rounded-md text-zinc-400 hover:text-zinc-100"
+          className="min-h-11 min-w-11 rounded-md text-charcoal-400 hover:text-charcoal-100"
         >
           ✕
         </button>
       </div>
-      <p className="mt-1 text-sm text-zinc-400">Next step time: {formattedTime}</p>
+      <p className="mt-1 text-sm text-charcoal-400">Next step time: {formattedTime}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         {NUDGE_DELTAS_MINUTES.map((deltaMinutes) => (
           <button
             key={deltaMinutes}
             type="button"
             onClick={() => handleNudge(deltaMinutes)}
-            className="min-h-11 min-w-11 rounded-md border border-zinc-600 px-4 py-2 font-medium text-zinc-100 hover:bg-zinc-800"
+            className="min-h-11 min-w-11 rounded-md border border-charcoal-600 px-4 py-2 font-medium text-charcoal-100 hover:bg-charcoal-800"
           >
             {deltaMinutes > 0 ? `+${deltaMinutes}` : deltaMinutes} min
           </button>

@@ -86,12 +86,12 @@ export default function StepRunnerScreen() {
 
   if (session.status === 'completed') {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-zinc-950 p-6 text-center text-zinc-100">
+      <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-charcoal-950 p-6 text-center text-charcoal-100">
         <h1 className="text-3xl font-bold">You&apos;re done — enjoy your pizza</h1>
         <button
           type="button"
           onClick={resetSession}
-          className="min-h-11 rounded-md bg-zinc-100 px-6 py-3 text-2xl font-semibold text-zinc-900 hover:bg-white"
+          className="min-h-11 rounded-md bg-ember-500 px-6 py-3 text-2xl font-semibold text-charcoal-950 hover:bg-ember-400"
         >
           Start a new bake
         </button>
@@ -107,35 +107,53 @@ export default function StepRunnerScreen() {
   // narrower condition (present only for a best-effort 200-219 °C bake) — unchanged below.
   const bakeSpec = isBakeStep ? session.bakeAdaptation : undefined;
   const caveat = isBakeStep ? session.bakeAdaptation?.caveat : undefined;
+  // Runner progress indicator (iteration 3.2): a filled bar reflecting how far through the
+  // workflow the baker is. Deliberately `stepIndex / workflow.length` (not `+1`), per the phase
+  // file's own formula — the bar fills as steps are completed, reaching 100% only once `advance`
+  // flips `status` to `'completed'` and this component returns the completion screen instead.
+  const progressPercent = Math.round((session.stepIndex / session.workflow.length) * 100);
 
   return (
-    <main className="flex min-h-screen flex-col bg-zinc-950 text-zinc-100">
+    <main className="flex min-h-screen flex-col bg-charcoal-950 text-charcoal-100">
       <WakeLockHint visible={wakeLockUnavailable} />
 
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-between gap-6 p-6">
         <div>
-          <p className="text-sm text-zinc-400">
+          <p className="text-sm text-charcoal-400">
             Step {session.stepIndex + 1} of {session.workflow.length} · {formatClockTime(currentStep.clockStartTime)}
           </p>
+          <div
+            role="progressbar"
+            aria-valuenow={progressPercent}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Bake progress"
+            className="mt-2 h-2 w-full overflow-hidden rounded-full bg-charcoal-800"
+          >
+            <div
+              className="h-full rounded-full bg-ember-500 transition-all"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
           <CountdownTimer />
           <h1 className="mt-2 text-3xl font-bold">{currentStep.name}</h1>
-          <p className="mt-3 text-lg text-zinc-300">{currentStep.why}</p>
+          <p className="mt-3 text-lg text-charcoal-300">{currentStep.why}</p>
 
           {currentStep.isEstimate && (
-            <div className="mt-4 rounded-md border border-zinc-700 bg-zinc-900 p-4">
-              <p className="text-sm font-medium text-zinc-400">{ESTIMATE_LABEL}</p>
-              {currentStep.cue && <p className="mt-1 text-zinc-100">{currentStep.cue}</p>}
+            <div className="mt-4 rounded-md border border-charcoal-700 bg-charcoal-900 p-4">
+              <p className="text-sm font-medium text-charcoal-400">{ESTIMATE_LABEL}</p>
+              {currentStep.cue && <p className="mt-1 text-charcoal-100">{currentStep.cue}</p>}
             </div>
           )}
 
           {currentStep.how && (
-            <ol className="mt-4 list-decimal space-y-2 pl-5 text-zinc-100">
+            <ol className="mt-4 list-decimal space-y-2 pl-5 text-charcoal-100">
               {currentStep.how.map((howStep) => {
                 const resolved = resolveHowIngredientRefs(howStep.ingredientRefs, scaledIngredients);
                 return (
                   <li key={howStep.action}>
                     {resolved.length > 0 && (
-                      <span className="font-medium text-zinc-50">
+                      <span className="font-medium text-charcoal-50">
                         {resolved.map((ingredient) => `${ingredient.grams}g ${ingredient.name}`).join(', ')}
                         :{' '}
                       </span>
@@ -148,8 +166,8 @@ export default function StepRunnerScreen() {
           )}
 
           {bakeSpec && (
-            <div className="mt-4 rounded-md border border-zinc-700 bg-zinc-900 p-4">
-              <p className="text-lg font-semibold text-zinc-100">
+            <div className="mt-4 rounded-md border border-charcoal-700 bg-charcoal-900 p-4">
+              <p className="text-lg font-semibold text-charcoal-100">
                 {bakeSpec.bakeTempC}°C for {bakeSpec.bakeTimeMinutes} min
               </p>
             </div>
@@ -176,7 +194,7 @@ export default function StepRunnerScreen() {
           <button
             type="button"
             onClick={advanceStep}
-            className="min-h-11 w-full rounded-md bg-zinc-100 px-4 py-4 text-2xl font-semibold text-zinc-900 hover:bg-white"
+            className="min-h-11 w-full rounded-md bg-ember-500 px-4 py-4 text-2xl font-semibold text-charcoal-950 hover:bg-ember-400"
           >
             Done — next step
           </button>
@@ -184,14 +202,14 @@ export default function StepRunnerScreen() {
             <button
               type="button"
               onClick={backStep}
-              className="min-h-11 flex-1 rounded-md border border-zinc-600 px-4 py-2 font-medium text-zinc-100 hover:bg-zinc-800"
+              className="min-h-11 flex-1 rounded-md border border-charcoal-600 px-4 py-2 font-medium text-charcoal-100 hover:bg-charcoal-800"
             >
               Go back
             </button>
             <button
               type="button"
               onClick={() => setNudgeOpen((open) => !open)}
-              className="min-h-11 flex-1 rounded-md border border-zinc-600 px-4 py-2 font-medium text-zinc-100 hover:bg-zinc-800"
+              className="min-h-11 flex-1 rounded-md border border-charcoal-600 px-4 py-2 font-medium text-charcoal-100 hover:bg-charcoal-800"
             >
               Nudge pace
             </button>
@@ -200,21 +218,21 @@ export default function StepRunnerScreen() {
             <button
               type="button"
               onClick={() => setRecipeCardOpen(true)}
-              className="min-h-11 flex-1 rounded-md border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800"
+              className="min-h-11 flex-1 rounded-md border border-charcoal-700 px-4 py-2 text-sm text-charcoal-300 hover:bg-charcoal-800"
             >
               Recipe
             </button>
             <button
               type="button"
               onClick={() => setTimelineOpen(true)}
-              className="min-h-11 flex-1 rounded-md border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800"
+              className="min-h-11 flex-1 rounded-md border border-charcoal-700 px-4 py-2 text-sm text-charcoal-300 hover:bg-charcoal-800"
             >
               Timeline
             </button>
             <button
               type="button"
               onClick={() => setAbandonOpen(true)}
-              className="min-h-11 flex-1 rounded-md border border-zinc-700 px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800"
+              className="min-h-11 flex-1 rounded-md border border-charcoal-700 px-4 py-2 text-sm text-charcoal-400 hover:bg-charcoal-800"
             >
               Abandon bake
             </button>

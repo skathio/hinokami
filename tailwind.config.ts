@@ -41,8 +41,17 @@ import type { Config } from 'tailwindcss';
 // | charcoal-900 #211a16 | ember-400   #e8813f   | card bg + accent text/icon                  | 6.24:1  | 4.5:1  | PASS   |
 // | charcoal-950 #17120f | ember-500   #d9591a   | page bg + accent focus-ring/border (UI)     | 4.77:1  | 3:1    | PASS   |
 // | charcoal-900 #211a16 | ember-500   #d9591a   | card bg + accent focus-ring/border (UI)     | 4.41:1  | 3:1    | PASS   |
+// | red-700      #b91c1c | white       #ffffff   | destructive "Abandon bake" bg + text        | 6.47:1  | 4.5:1  | PASS   |
+// | red-600      #dc2626 | white       #ffffff   | destructive bg (hover/pressed) + text       | 4.83:1  | 4.5:1  | PASS   |
 //
 // Notes:
+// - `red-700`/`red-600` above are raw Tailwind defaults (not `charcoal`/`ember` tokens) —
+//   `AbandonConfirmDialog.tsx`'s destructive "Abandon bake" button predates this phase and was
+//   deliberately left unmigrated (iteration 3.2 diary: distinct danger semantics, kept separate
+//   from the neutral/accent system, same treatment as the `amber-*` warning banners). Added here
+//   in iteration 3.2 (review F-29) purely to satisfy this phase's exit criterion — a documented
+//   ratio for every foreground/background pair actually rendered, including ones that aren't new
+//   `charcoal`/`ember` consumers.
 // - `charcoal-700`/`charcoal-800` also serve as decorative dividers/panel edges (mirroring today's
 //   `border-zinc-700`/`border-zinc-800` on banners, panel containers, list rows) — these are NOT
 //   load-bearing for perceiving an interactive element, so WCAG 1.4.11 doesn't apply and no ratio

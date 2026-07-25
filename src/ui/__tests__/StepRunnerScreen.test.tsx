@@ -464,6 +464,40 @@ describe('StepRunnerScreen — wake-lock hint (NFR-7)', () => {
   });
 });
 
+describe('StepRunnerScreen — progress indicator (iteration 3.2)', () => {
+  it('reflects stepIndex / workflow.length via aria-valuenow', () => {
+    mockStore(
+      buildSession({
+        stepIndex: 1,
+        workflow: [buildStep(), buildStep({ stageId: 'bulk' }), buildStep({ stageId: 'shape' }), buildStep({ stageId: 'proof' })],
+      }),
+    );
+
+    render(<StepRunnerScreen />);
+
+    expect(screen.getByRole('progressbar', { name: /bake progress/i })).toHaveAttribute(
+      'aria-valuenow',
+      '25',
+    );
+  });
+
+  it('shows 0 progress on the first step', () => {
+    mockStore(
+      buildSession({
+        stepIndex: 0,
+        workflow: [buildStep(), buildStep({ stageId: 'bulk' })],
+      }),
+    );
+
+    render(<StepRunnerScreen />);
+
+    expect(screen.getByRole('progressbar', { name: /bake progress/i })).toHaveAttribute(
+      'aria-valuenow',
+      '0',
+    );
+  });
+});
+
 describe('StepRunnerScreen — completion (FR-7, FR-20)', () => {
   it('shows the completion screen once the session status is completed, and "Start a new bake" resets', () => {
     const state = mockStore(buildSession({ status: 'completed', stepIndex: 0 }));

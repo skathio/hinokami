@@ -16,14 +16,14 @@ export default function WakeLockHint({ visible }: WakeLockHintProps) {
   return (
     <div
       role="status"
-      className="flex items-start justify-between gap-4 border-b border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-300"
+      className="flex items-start justify-between gap-4 border-b border-charcoal-700 bg-charcoal-900 px-4 py-3 text-sm text-charcoal-300"
     >
       <p>Your screen may dim — consider disabling auto-lock.</p>
       <button
         type="button"
         onClick={() => setDismissed(true)}
         aria-label="Dismiss wake-lock hint"
-        className="min-h-11 min-w-11 shrink-0 rounded-md px-3 text-zinc-400 hover:text-zinc-100"
+        className="min-h-11 min-w-11 shrink-0 rounded-md px-3 text-charcoal-400 hover:text-charcoal-100"
       >
         Dismiss
       </button>

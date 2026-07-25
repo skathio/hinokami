@@ -48,13 +48,13 @@ export default function CountdownTimer() {
   // Consistent with `StepRunnerScreen`'s existing `ESTIMATE_LABEL` framing ("trust dough feel
   // over the clock").
   if (step.isEstimate) {
-    return <p className="mt-1 text-sm text-zinc-400">ends ~{formattedEndTime} (estimate)</p>;
+    return <p className="mt-1 text-sm text-charcoal-400">ends ~{formattedEndTime} (estimate)</p>;
   }
 
   const remainingMinutes = Math.max(0, Math.round((endTime.getTime() - Date.now()) / 60_000));
 
   return (
-    <p className="mt-1 text-sm text-zinc-400">
+    <p className="mt-1 text-sm text-charcoal-400">
       ends ~{formattedEndTime} · ≈{remainingMinutes}m left
     </p>
   );

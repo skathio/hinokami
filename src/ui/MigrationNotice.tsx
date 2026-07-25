@@ -16,14 +16,14 @@ export default function MigrationNotice() {
   return (
     <div
       role="status"
-      className="flex items-start justify-between gap-4 border-b border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-200"
+      className="flex items-start justify-between gap-4 border-b border-charcoal-700 bg-charcoal-900 px-4 py-3 text-sm text-charcoal-200"
     >
       <p>{message}</p>
       <button
         type="button"
         onClick={dismiss}
         aria-label="Dismiss notice"
-        className="min-h-11 min-w-11 shrink-0 rounded-md px-3 text-zinc-400 hover:text-zinc-100"
+        className="min-h-11 min-w-11 shrink-0 rounded-md px-3 text-charcoal-400 hover:text-charcoal-100"
       >
         Dismiss
       </button>
