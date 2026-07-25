@@ -1,3 +1,15 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* recipe-ux-overhaul Phase 3.1: the app is dark-first (tailwind.config.ts's `darkMode: 'class'`,
+   forced on by the app shell). `color-scheme: dark` tells the browser to theme native form
+   controls (checkboxes, scrollbars, etc. — e.g. ConfigScreen's pathway checkbox) to match, instead
+   of rendering with light-mode native chrome against our warm-dark surfaces. No bundled font: this
+   iteration's display font (tailwind.config.ts `fontFamily.display`) is a system stack, so no
+   `@font-face` is needed here. */
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+}
