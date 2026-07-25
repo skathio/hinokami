@@ -223,18 +223,18 @@ export default function ConfigScreen({ recipe }: ConfigScreenProps) {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 p-6 text-zinc-100">
+    <main className="min-h-screen bg-charcoal-950 p-6 text-charcoal-100">
       <div className="mx-auto max-w-lg space-y-6">
         <div>
           <button
             type="button"
             onClick={() => setView('recipe-select')}
-            className="min-h-11 text-sm text-zinc-400 hover:text-zinc-100"
+            className="min-h-11 text-sm text-charcoal-400 hover:text-charcoal-100"
           >
             ‹ Change recipe
           </button>
           <h1 className="mt-2 text-2xl font-semibold">{recipe.name}</h1>
-          <p className="mt-1 text-sm text-zinc-400">{recipe.description}</p>
+          <p className="mt-1 text-sm text-charcoal-400">{recipe.description}</p>
         </div>
 
         {ovenTooCold && (
@@ -259,7 +259,7 @@ export default function ConfigScreen({ recipe }: ConfigScreenProps) {
 
         <form onSubmit={handleSubmit} noValidate className="space-y-5">
           <div>
-            <label htmlFor="target-time" className="block text-sm font-medium text-zinc-200">
+            <label htmlFor="target-time" className="block text-sm font-medium text-charcoal-200">
               Target ready time
             </label>
             <input
@@ -269,7 +269,11 @@ export default function ConfigScreen({ recipe }: ConfigScreenProps) {
               onChange={(event) => setValues((prev) => ({ ...prev, targetTime: event.target.value }))}
               onBlur={() => markTouched('targetTime')}
               aria-invalid={fieldError('targetTime') ? true : undefined}
-              className="mt-1 min-h-11 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-100 focus:border-zinc-400 focus:outline-none"
+              // `border-charcoal-600` (not the naive 1:1 `charcoal-700`) — text inputs are one of
+              // the interactive-element border cases `tailwind.config.ts`'s contrast table verifies
+              // at 3:1 against this `charcoal-900` field bg (3.15:1); `charcoal-700` here would only
+              // measure 1.64:1, a real regression below the UI-boundary bar.
+              className="mt-1 min-h-11 rounded-md border border-charcoal-600 bg-charcoal-900 px-3 py-2 text-charcoal-100 focus:border-charcoal-400 focus:outline-none"
             />
             {fieldError('targetTime') && (
               <p role="alert" className="mt-1 text-sm text-red-400">
@@ -288,7 +292,7 @@ export default function ConfigScreen({ recipe }: ConfigScreenProps) {
             error={fieldError('ovenMaxC')}
           />
 
-          <label className="flex min-h-11 items-center gap-2 text-sm text-zinc-200">
+          <label className="flex min-h-11 items-center gap-2 text-sm text-charcoal-200">
             <input
               type="checkbox"
               checked={values.hasStoneOrSteel}
@@ -337,7 +341,13 @@ export default function ConfigScreen({ recipe }: ConfigScreenProps) {
 
           <button
             type="submit"
-            className="min-h-11 w-full rounded-md bg-zinc-100 px-4 py-3 text-base font-semibold text-zinc-900 hover:bg-white"
+            // `charcoal-100`/`charcoal-950` — the "light/neutral CTA bg + dark text" pair
+            // (tailwind.config.ts, 15.06:1), distinct from the accent `ember-500` CTA the runner
+            // uses: Generate is this screen's only action, not competing with anything else, so it
+            // doesn't need the accent treatment. Hover lightens further to `charcoal-50`
+            // (17.14:1 — strictly higher contrast, same monotonic-hover argument as 3.2's
+            // `ember-400` hover).
+            className="min-h-11 w-full rounded-md bg-charcoal-100 px-4 py-3 text-base font-semibold text-charcoal-950 hover:bg-charcoal-50"
           >
             Generate
           </button>

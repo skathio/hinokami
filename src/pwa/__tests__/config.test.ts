@@ -24,8 +24,8 @@ describe('pwaOptions', () => {
     }
     expect(manifest.name).toBe('Hinokami');
     expect(manifest.short_name).toBe('Hinokami');
-    expect(manifest.theme_color).toBe('#09090b');
-    expect(manifest.background_color).toBe('#09090b');
+    expect(manifest.theme_color).toBe('#17120f');
+    expect(manifest.background_color).toBe('#17120f');
     expect(manifest.display).toBe('standalone');
   });
 

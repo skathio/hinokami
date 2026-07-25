@@ -43,6 +43,53 @@ import type { Config } from 'tailwindcss';
 // | charcoal-900 #211a16 | ember-500   #d9591a   | card bg + accent focus-ring/border (UI)     | 4.41:1  | 3:1    | PASS   |
 // | red-700      #b91c1c | white       #ffffff   | destructive "Abandon bake" bg + text        | 6.47:1  | 4.5:1  | PASS   |
 // | red-600      #dc2626 | white       #ffffff   | destructive bg (hover/pressed) + text       | 4.83:1  | 4.5:1  | PASS   |
+// | charcoal-950 #17120f | charcoal-200 #dcd0c2  | page bg + form-field label (no card wrapper)| 12.25:1 | 4.5:1  | PASS   |
+// | charcoal-100 #f0e6d8 | charcoal-950 #17120f  | light/neutral CTA hover bg (charcoal-50) + dark text | 17.14:1 | 4.5:1 | PASS |
+// | charcoal-950 #17120f | red-400     #f87171   | inline validation error text (role=alert)   | 6.72:1  | 4.5:1  | PASS   |
+//
+// Iteration 3.3 additions (pre-bake/config screens) — computed for real, same formula/discipline:
+// - `charcoal-950`/`charcoal-200` above: `ConfigScreen`/`TemperatureInput`/`BatchInput`/
+//   `PathwayToggle` render form-field labels directly on the page bg (no card wrapper), unlike the
+//   `charcoal-900`+`charcoal-200` "label text" row above (that one's a card-bg pairing). Still
+//   comfortably PASSes — darker bg than the card case, so contrast can only be higher.
+// - `charcoal-100`/`charcoal-950` "hover" row: `ConfigScreen`'s Generate button hovers to
+//   `charcoal-50` (lighter than the base `charcoal-100`), so hover contrast against the fixed dark
+//   text only increases past 15.06:1 — computed for real anyway (17.14:1) rather than asserted by
+//   the monotonic argument alone.
+// - `red-400` (inline field-error text, `TemperatureInput`/`BatchInput`/`PathwayToggle`/
+//   `ConfigScreen`) was left as a raw Tailwind default, same "distinct semantic color" treatment as
+//   `amber-*`/destructive `red-700`/`red-600` — verified against the new `charcoal-950` page bg
+//   (was previously verified only against the old `zinc-950`, a different, darker hex) since the
+//   bg actually changed under it this iteration.
+// - **`charcoal-600`, not `charcoal-700`, for text-`<input>` borders**: naive 1:1 `zinc-700` →
+//   `charcoal-700` on `ConfigScreen`/`TemperatureInput`/`BatchInput`'s `<input>` elements measures
+//   only 1.64:1 against the `charcoal-900` field bg — a real regression below the 3:1 UI-boundary
+//   bar. `charcoal-600` is the shade this table's own note already reserves for "borders that ARE
+//   part of an interactive element (buttons, inputs, focus rings)" — reused here (already verified
+//   above, "card bg + interactive-element border (UI)", 3.15:1).
+// - **`charcoal-400`, not `charcoal-500`, for hint/caption text** (`TemperatureInput`'s "Valid
+//   range" line, `BatchInput`'s ball-count/weight range lines): `charcoal-500` measures 4.38:1
+//   against `charcoal-950` — passes the 3:1 non-text/decorative bar (and is used exactly that way
+//   below, for `RecipeSelectScreen`'s hover-border) but fails the 4.5:1 body-text bar this hint text
+//   needs. `charcoal-400` is already verified (6.17:1, "muted/caption text") and reused instead.
+// - `charcoal-500` as a border: consumed only as `RecipeSelectScreen`'s `hover:border-charcoal-500`
+//   on its list-row buttons — a transient, non-text UI-boundary highlight, held to the 3:1 bar, not
+//   the 4.5:1 text bar (see previous note). The border sits adjacent to the button's own
+//   `charcoal-900` fill, not the page's `charcoal-950` bg behind it — the actually-relevant
+//   adjacency is charcoal-900/charcoal-500 = **4.05:1** (PASS); charcoal-950/charcoal-500 = 4.38:1
+//   (computed above) is a different, non-adjacent pairing, cited only because it's the same token
+//   pair reused for the hint-text deviation two notes up, not because it's this border's own ratio.
+//   Both PASS 3:1 regardless, so this is a citation correction (review F-32), not a token change.
+// - `border-charcoal-700` on `RecipeSelectScreen`'s list-row buttons, `TemperatureInput`/
+//   `PathwayToggle`'s unselected toggle chips, and `UpdatePrompt`'s banner divider are all the same
+//   decorative-border case this table already carves out below ("banners, panel containers, list
+//   rows") — each control's own text label is what identifies it, not the border, so these aren't
+//   held to 3:1.
+// - `UpdatePrompt`'s "Reload" button was retoned from a pre-existing raw `red-900`/`red-800` to
+//   `ember-500`/`charcoal-950` (design decision, not a 1:1 swap) — "Reload" applies a pending
+//   update, not a destructive action, so it doesn't belong with `AbandonConfirmDialog`'s danger-red;
+//   as this banner's one action it gets the same accent-CTA pairing already verified above
+//   (4.77:1).
 //
 // Notes:
 // - `red-700`/`red-600` above are raw Tailwind defaults (not `charcoal`/`ember` tokens) —

@@ -31,13 +31,20 @@ export default function UpdatePrompt() {
   return (
     <div
       role="status"
-      className="flex items-start justify-between gap-4 border-b border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-200"
+      className="flex items-start justify-between gap-4 border-b border-charcoal-700 bg-charcoal-900 px-4 py-3 text-sm text-charcoal-200"
     >
       <p>Hinokami has been updated.</p>
       <button
         type="button"
         onClick={handleReload}
-        className="min-h-11 shrink-0 rounded-md bg-red-900 px-4 font-medium text-zinc-100 hover:bg-red-800"
+        // Retoned from the pre-existing raw `red-900`/`red-800` to the warm accent (iteration 3.3
+        // design decision, not a 1:1 shade swap): "Reload" applies a pending update — it isn't a
+        // destructive action, so it doesn't belong in the danger-red family
+        // `AbandonConfirmDialog.tsx` reserves for that semantic (3.2 diary). It's this banner's one
+        // action, i.e. a primary CTA, so it gets the same `ember-500`/`charcoal-950` pairing the
+        // runner's CTAs use (tailwind.config.ts, 4.77:1); `hover:bg-ember-400` only increases
+        // contrast further (lighter shade, same fixed dark text).
+        className="min-h-11 shrink-0 rounded-md bg-ember-500 px-4 font-medium text-charcoal-950 hover:bg-ember-400"
       >
         Reload
       </button>

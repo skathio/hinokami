@@ -17,8 +17,8 @@ export const pwaOptions: Partial<VitePWAOptions> = {
     name: 'Hinokami',
     short_name: 'Hinokami',
     description: 'Adaptive pizza workflow for your actual oven',
-    theme_color: '#09090b', // zinc-950; matches the app's dark theme
-    background_color: '#09090b',
+    theme_color: '#17120f', // charcoal-950; matches the app's dark theme
+    background_color: '#17120f',
     display: 'standalone',
     icons: [
       { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },

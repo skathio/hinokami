@@ -67,7 +67,7 @@ export default function TemperatureInput({
 
   return (
     <div>
-      <label htmlFor={inputId} className="block text-sm font-medium text-zinc-200">
+      <label htmlFor={inputId} className="block text-sm font-medium text-charcoal-200">
         {label}
       </label>
       <div className="mt-1 flex gap-2">
@@ -80,7 +80,9 @@ export default function TemperatureInput({
           onBlur={onBlur}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
-          className="min-h-11 w-28 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-100 focus:border-zinc-400 focus:outline-none"
+          // `charcoal-600` border, not the naive 1:1 `charcoal-700` — see `ConfigScreen.tsx`'s
+          // target-time input comment for why (1.64:1 vs. 3.15:1 against this `charcoal-900` bg).
+          className="min-h-11 w-28 rounded-md border border-charcoal-600 bg-charcoal-900 px-3 py-2 text-charcoal-100 focus:border-charcoal-400 focus:outline-none"
         />
         <div role="group" aria-label={`${label} unit`} className="flex gap-1">
           <button
@@ -88,7 +90,7 @@ export default function TemperatureInput({
             aria-pressed={unit === 'C'}
             onClick={() => setUnit('C')}
             className={`min-h-11 min-w-11 rounded-md border px-3 text-sm ${
-              unit === 'C' ? 'border-zinc-300 bg-zinc-100 text-zinc-900' : 'border-zinc-700 text-zinc-300'
+              unit === 'C' ? 'border-charcoal-300 bg-charcoal-100 text-charcoal-950' : 'border-charcoal-700 text-charcoal-300'
             }`}
           >
             °C
@@ -98,14 +100,18 @@ export default function TemperatureInput({
             aria-pressed={unit === 'F'}
             onClick={() => setUnit('F')}
             className={`min-h-11 min-w-11 rounded-md border px-3 text-sm ${
-              unit === 'F' ? 'border-zinc-300 bg-zinc-100 text-zinc-900' : 'border-zinc-700 text-zinc-300'
+              unit === 'F' ? 'border-charcoal-300 bg-charcoal-100 text-charcoal-950' : 'border-charcoal-700 text-charcoal-300'
             }`}
           >
             °F
           </button>
         </div>
       </div>
-      <p className="mt-1 text-xs text-zinc-500">
+      {/* `charcoal-400`, not a naive 1:1 `charcoal-500` — `charcoal-500` measures only 4.38:1
+          against this `charcoal-950` page bg, below the 4.5:1 body-text bar (it's still fine as a
+          decorative/border shade, just not for real text); `charcoal-400` is already verified at
+          6.17:1 and reused here. */}
+      <p className="mt-1 text-xs text-charcoal-400">
         Valid range: {minDisplay}°{unit}–{maxDisplay}°{unit}
       </p>
       {error && (
