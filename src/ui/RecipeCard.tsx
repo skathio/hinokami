@@ -87,7 +87,7 @@ export default function RecipeCard({ onClose }: RecipeCardProps) {
             {bakeAdaptation ? (
               <div className="mt-2 space-y-1 text-charcoal-100">
                 <p>
-                  {bakeAdaptation.bakeTempC}°C for {bakeAdaptation.bakeTimeMinutes} min
+                  {bakeAdaptation.bakeTempC}°C for {Math.round(bakeAdaptation.bakeTimeMinutes)} min
                 </p>
                 {bakeAdaptation.doughGuidance && (
                   <p className="text-sm text-charcoal-300">{bakeAdaptation.doughGuidance}</p>

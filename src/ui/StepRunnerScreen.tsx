@@ -168,7 +168,7 @@ export default function StepRunnerScreen() {
           {bakeSpec && (
             <div className="mt-4 rounded-md border border-charcoal-700 bg-charcoal-900 p-4">
               <p className="text-lg font-semibold text-charcoal-100">
-                {bakeSpec.bakeTempC}°C for {bakeSpec.bakeTimeMinutes} min
+                {bakeSpec.bakeTempC}°C for {Math.round(bakeSpec.bakeTimeMinutes)} min
               </p>
             </div>
           )}

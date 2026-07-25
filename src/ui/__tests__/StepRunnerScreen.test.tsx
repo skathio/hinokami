@@ -207,6 +207,20 @@ describe('StepRunnerScreen — unconditional bake temp/time (iteration 1.2)', ()
     expect(screen.getByText(/280°C for 8 min/)).toBeInTheDocument();
   });
 
+  it('rounds a fractional bakeTimeMinutes rather than rendering the raw float', () => {
+    mockStore(
+      buildSession({
+        workflow: [buildStep({ stageId: 'bake', name: 'Bake', isEstimate: false })],
+        bakeAdaptation: { bakeTempC: 250, bakeTimeMinutes: 6.6110919727718125 },
+      }),
+    );
+
+    render(<StepRunnerScreen />);
+
+    expect(screen.getByText(/250°C for 7 min/)).toBeInTheDocument();
+    expect(screen.queryByText(/6\.611/)).not.toBeInTheDocument();
+  });
+
   it('shows bakeTempC/bakeTimeMinutes on the bake step alongside a caveat when one is present (regression, unchanged)', () => {
     mockStore(
       buildSession({

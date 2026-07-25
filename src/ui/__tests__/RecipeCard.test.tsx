@@ -141,6 +141,19 @@ describe('RecipeCard — bake spec', () => {
     expect(screen.getByText('Stretch gently, keep the rim thick.')).toBeInTheDocument();
   });
 
+  it('rounds a fractional bakeTimeMinutes rather than rendering the raw float', () => {
+    mockStore(
+      buildSession({
+        bakeAdaptation: { bakeTempC: 250, bakeTimeMinutes: 6.6110919727718125 },
+      }),
+    );
+
+    render(<RecipeCard onClose={vi.fn()} />);
+
+    expect(screen.getByText(/250°C for 7 min/)).toBeInTheDocument();
+    expect(screen.queryByText(/6\.611/)).not.toBeInTheDocument();
+  });
+
   it('renders gracefully when bakeAdaptation is absent', () => {
     mockStore(buildSession({ bakeAdaptation: undefined }));
 
