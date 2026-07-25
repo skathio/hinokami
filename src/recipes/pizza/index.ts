@@ -14,6 +14,7 @@ import {
   type BakeAdaptation,
   type BakersPercentageFormula,
   type Duration,
+  type HowStep,
   type OvenContext,
   type OvenTooCold,
   type Pathway,
@@ -131,6 +132,84 @@ const TEMPER_WHY =
 const TEMPER_CUE =
   'The ball should feel cool but no longer cold — close to room temperature. If you have a ' +
   'thermometer, aim for an interior temperature of at least 18°C (64°F).';
+
+// ---------------------------------------------------------------------------------------------
+// Stage "how" content (D2, D6, iteration 2.2) — ordered, concrete action steps beneath each
+// stage's `why`/`cue`. Grounded in standard home-oven Neapolitan technique (dissolve-then-
+// combine mixing, stretch-and-fold during bulk, surface-tension balling, hand-stretched bake).
+// Authored, not derived from any cited numeric source the way `why`/`cue` cite `decisions.md P6`
+// — this is technique prose, flagged for a human correctness skim before merge (phase 2 file
+// §"Risk pointers", brief §8 open risk). `ingredientRefs` names are exact `FormulaIngredient.name`
+// matches, resolved against `scaledIngredients` at render time (NF7) — never a hardcoded gram
+// figure here. `preheat` has no `how`: its single action ("wait for a full preheat") is already
+// fully covered by `PREHEAT_WHY`, so a `how` here would add words, not information.
+// ---------------------------------------------------------------------------------------------
+
+const MIX_HOW: HowStep[] = [
+  { action: 'Dissolve the yeast into the water.', ingredientRefs: ['Water', 'Yeast (instant dry)'] },
+  { action: 'Add the flour and salt, then mix until no dry flour remains.', ingredientRefs: ['Flour', 'Salt'] },
+  {
+    action:
+      'Knead until the dough is smooth and passes the windowpane test — stretch a small piece thin ' +
+      'enough to see light through it without it tearing.',
+  },
+];
+
+const BULK_HOW: HowStep[] = [
+  { action: 'Cover the dough to keep it from drying out, then leave it at room temperature to bulk ferment.' },
+  {
+    action:
+      "If the dough feels slack partway through, give it one or two gentle stretch-and-folds to " +
+      'strengthen it — optional, not required.',
+  },
+];
+
+const SHAPE_HOW: HowStep[] = [
+  { action: 'Divide the dough into portions at your target ball weight.' },
+  {
+    action:
+      'Shape each portion into a tight ball: cup your hand around it and drag it in a circular ' +
+      'motion against the work surface to build surface tension on top.',
+  },
+  { action: "Space the balls apart on a floured or lightly oiled tray so they don't stick together." },
+];
+
+const PROOF_HOW: HowStep[] = [
+  {
+    action:
+      'Cover the balls loosely (a proofing box, plastic wrap, or a floured cloth) to stop them ' +
+      'drying out.',
+  },
+  { action: 'Leave them undisturbed at room temperature until they look and feel puffy.' },
+];
+
+const COLD_FERMENT_HOW: HowStep[] = [
+  {
+    action:
+      "Cover the dough tightly (an airtight container or plastic wrap) so it doesn't dry out or " +
+      'form a skin.',
+  },
+  { action: 'Place it in the refrigerator for the scheduled duration.' },
+];
+
+const TEMPER_HOW: HowStep[] = [
+  { action: 'Take the shaped balls out of the refrigerator and cover them loosely.' },
+  { action: 'Let them warm at room temperature until no longer cold to the touch.' },
+];
+
+const BAKE_HOW: HowStep[] = [
+  {
+    action:
+      'Stretch the tempered ball into a round by hand, leaving a puffy outer rim — avoid a rolling ' +
+      'pin, which knocks out the fermentation gas.',
+  },
+  { action: 'Add toppings lightly so the crust cooks through in the short bake time.' },
+  {
+    action:
+      'Launch the pizza onto the preheated stone or steel with a floured or semolina-dusted peel, ' +
+      'then rotate partway through baking for even color.',
+  },
+];
 
 // ---------------------------------------------------------------------------------------------
 // Stage durations (`decisions.md P3`) — the Q10 = 2 model for fermentation stages, fixed
@@ -270,16 +349,17 @@ function adaptBake(ctx: OvenContext): Result<BakeAdaptation, OvenTooCold> {
 // ---------------------------------------------------------------------------------------------
 
 const pizzaStages: Stage[] = [
-  { id: 'mix', name: 'Mix', type: 'prep', why: MIX_WHY },
-  { id: 'bulk', name: 'Bulk ferment', type: 'fermentation', why: BULK_WHY, cue: BULK_CUE },
-  { id: 'shape', name: 'Shape', type: 'shape', why: SHAPE_WHY },
-  { id: 'proof', name: 'Ball proof', type: 'fermentation', why: PROOF_WHY, cue: PROOF_CUE },
+  { id: 'mix', name: 'Mix', type: 'prep', why: MIX_WHY, how: MIX_HOW },
+  { id: 'bulk', name: 'Bulk ferment', type: 'fermentation', why: BULK_WHY, cue: BULK_CUE, how: BULK_HOW },
+  { id: 'shape', name: 'Shape', type: 'shape', why: SHAPE_WHY, how: SHAPE_HOW },
+  { id: 'proof', name: 'Ball proof', type: 'fermentation', why: PROOF_WHY, cue: PROOF_CUE, how: PROOF_HOW },
   {
     id: 'cold-ferment',
     name: 'Cold ferment',
     type: 'cold-ferment',
     why: COLD_FERMENT_WHY,
     cue: COLD_FERMENT_CUE,
+    how: COLD_FERMENT_HOW,
     // Elastic (`decisions.md P3` pass-2 fix, Major 1): `solveScheduleBackward` — not
     // `stageDuration` — clamps available slack into this range, stretching the fridge stage
     // toward the 48h quality sweet spot instead of always defaulting to the 24h floor.
@@ -291,9 +371,9 @@ const pizzaStages: Stage[] = [
       maxMinutes: pizzaBounds.coldFermentHoursMax! * 60,
     },
   },
-  { id: 'temper', name: 'Temper', type: 'temper', why: TEMPER_WHY, cue: TEMPER_CUE },
+  { id: 'temper', name: 'Temper', type: 'temper', why: TEMPER_WHY, cue: TEMPER_CUE, how: TEMPER_HOW },
   { id: 'preheat', name: 'Preheat', type: 'preheat', why: PREHEAT_WHY },
-  { id: 'bake', name: 'Bake', type: 'bake', why: BAKE_WHY },
+  { id: 'bake', name: 'Bake', type: 'bake', why: BAKE_WHY, how: BAKE_HOW },
 ];
 
 // ---------------------------------------------------------------------------------------------
@@ -332,5 +412,8 @@ export const pizzaRecipe: Recipe = {
 };
 
 /** Bumped whenever this recipe's stages/timing/oven logic changes (D15, `sdd.md §3`/`§5`) — a
- * persisted `BakeSession` compares this against the live recipe's version at rehydration time. */
-export const PIZZA_CONTENT_VERSION = '1.0.0';
+ * persisted `BakeSession` compares this against the live recipe's version at rehydration time.
+ * 1.1.0 (iteration 2.2, D15): every stage gained authored `how` content — a real recipe-content
+ * change, so a bake already in progress under 1.0.0 hits the "continue-and-notify" mismatch path
+ * on its next rehydration rather than silently gaining new content mid-bake. */
+export const PIZZA_CONTENT_VERSION = '1.1.0';

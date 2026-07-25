@@ -9,6 +9,7 @@
 import { useState } from 'react';
 import { useSessionStore } from '@/store/session';
 import { useWakeLock } from '@/hooks/useWakeLock';
+import type { ScaledIngredient } from '@/engine';
 import WakeLockHint from './WakeLockHint';
 import NudgePanel from './NudgePanel';
 import AbandonConfirmDialog from './AbandonConfirmDialog';
@@ -17,6 +18,37 @@ import RecipeCard from './RecipeCard';
 import CountdownTimer from './CountdownTimer';
 
 const ESTIMATE_LABEL = 'Estimated — trust dough feel over the clock.';
+
+function devWarn(message: string): void {
+  if (import.meta.env.DEV) {
+    // Dev-only observability (mirrors `store/session.ts`/`engine/persistence.ts`'s convention) —
+    // never prod console noise.
+    console.warn(`[hinokami:step-runner] ${message}`);
+  }
+}
+
+/** Resolves a `HowStep`'s `ingredientRefs` against the store's `scaledIngredients` (iteration
+ * 2.2, NF7: never a hardcoded gram figure). A ref with no match in `scaledIngredients` is
+ * skipped — the caller renders the action text without a quantity for it (graceful, not a
+ * crash) — and fires a `devWarn` naming the unresolved ref, since a mismatch here is a real
+ * content bug (an `ingredientRefs` entry that doesn't match a `FormulaIngredient.name`), not an
+ * expected runtime state. */
+function resolveHowIngredientRefs(
+  ingredientRefs: ReadonlyArray<string> | undefined,
+  scaledIngredients: ReadonlyArray<ScaledIngredient> | null,
+): ReadonlyArray<ScaledIngredient> {
+  if (!ingredientRefs || ingredientRefs.length === 0) return [];
+  const resolved: ScaledIngredient[] = [];
+  for (const ref of ingredientRefs) {
+    const match = scaledIngredients?.find((ingredient) => ingredient.name === ref);
+    if (match) {
+      resolved.push(match);
+    } else {
+      devWarn(`unresolved "how" ingredientRef "${ref}" — no matching scaledIngredients entry`);
+    }
+  }
+  return resolved;
+}
 
 /** v1 is pizza-only (D3); `'bake'` is the pizza recipe's bake-stage id (`recipes/pizza/index.ts`).
  * `ScheduledStep` doesn't carry `Stage.type` — only `engine/schedule.ts` sees that at placement
@@ -35,6 +67,7 @@ export default function StepRunnerScreen() {
   const advanceStep = useSessionStore((state) => state.advanceStep);
   const backStep = useSessionStore((state) => state.backStep);
   const resetSession = useSessionStore((state) => state.resetSession);
+  const scaledIngredients = useSessionStore((state) => state.scaledIngredients);
 
   const [nudgeOpen, setNudgeOpen] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
@@ -93,6 +126,25 @@ export default function StepRunnerScreen() {
               <p className="text-sm font-medium text-zinc-400">{ESTIMATE_LABEL}</p>
               {currentStep.cue && <p className="mt-1 text-zinc-100">{currentStep.cue}</p>}
             </div>
+          )}
+
+          {currentStep.how && (
+            <ol className="mt-4 list-decimal space-y-2 pl-5 text-zinc-100">
+              {currentStep.how.map((howStep) => {
+                const resolved = resolveHowIngredientRefs(howStep.ingredientRefs, scaledIngredients);
+                return (
+                  <li key={howStep.action}>
+                    {resolved.length > 0 && (
+                      <span className="font-medium text-zinc-50">
+                        {resolved.map((ingredient) => `${ingredient.grams}g ${ingredient.name}`).join(', ')}
+                        :{' '}
+                      </span>
+                    )}
+                    {howStep.action}
+                  </li>
+                );
+              })}
+            </ol>
           )}
 
           {bakeSpec && (

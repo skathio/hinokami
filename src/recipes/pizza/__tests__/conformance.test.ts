@@ -22,8 +22,8 @@ describe('pizza recipe registration + versioning (phase 2 DoD)', () => {
     expect(pizzaRecipe.contractVersion).toBe(CONTRACT_VERSION);
   });
 
-  it('exports PIZZA_CONTENT_VERSION as "1.0.0"', () => {
-    expect(PIZZA_CONTENT_VERSION).toBe('1.0.0');
+  it('exports PIZZA_CONTENT_VERSION as "1.1.0"', () => {
+    expect(PIZZA_CONTENT_VERSION).toBe('1.1.0');
   });
 });
 

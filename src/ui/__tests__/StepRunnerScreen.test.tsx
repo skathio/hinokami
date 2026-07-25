@@ -11,7 +11,8 @@ import * as sessionStoreModule from '@/store/session';
 import { useSessionStore, type SessionStore } from '@/store/session';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { pizzaRecipe } from '@/recipes/pizza';
-import type { BakeSession, ScheduledStep } from '@/engine';
+import { resolveScaledIngredients } from '@/engine';
+import type { BakeSession, ScaledIngredient, ScheduledStep } from '@/engine';
 
 vi.mock('@/hooks/useWakeLock', () => ({
   useWakeLock: vi.fn(() => ({ wakeLockUnavailable: false })),
@@ -284,6 +285,118 @@ describe('StepRunnerScreen — live countdown (iteration 2.3)', () => {
     expect(screen.getByText(/trust dough feel over the clock/i)).toBeInTheDocument();
     expect(screen.getByText(/ends ~.*\(estimate\)/)).toBeInTheDocument();
     expect(screen.queryByText(/m left/)).not.toBeInTheDocument();
+  });
+});
+
+/** Escapes regex-special characters (grams values contain literal "."s that would otherwise
+ * match "any character" in a `RegExp`). */
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+describe('StepRunnerScreen — "how" content (iteration 2.2)', () => {
+  it('renders how actions as an ordered list beneath why/cue, with resolved ingredient quantities', () => {
+    const scaledIngredients = resolveScaledIngredients(pizzaRecipe, 'same-day', {
+      ballCount: 2,
+      ballWeightG: 250,
+    });
+    mockStore(
+      buildSession({
+        workflow: [
+          buildStep({
+            stageId: 'mix',
+            name: 'Mix',
+            how: [
+              { action: 'Dissolve the yeast into the water.', ingredientRefs: ['Water', 'Yeast (instant dry)'] },
+              { action: 'Add the flour and salt, then mix until no dry flour remains.', ingredientRefs: ['Flour', 'Salt'] },
+            ],
+          }),
+        ],
+      }),
+      { scaledIngredients },
+    );
+
+    render(<StepRunnerScreen />);
+
+    const list = screen.getByRole('list');
+    expect(list.tagName).toBe('OL');
+    expect(screen.getByText(/Dissolve the yeast into the water\./)).toBeInTheDocument();
+    expect(screen.getByText(/Add the flour and salt, then mix until no dry flour remains\./)).toBeInTheDocument();
+
+    const water = scaledIngredients.find((i) => i.name === 'Water')!;
+    const yeast = scaledIngredients.find((i) => i.name === 'Yeast (instant dry)')!;
+    const flour = scaledIngredients.find((i) => i.name === 'Flour')!;
+    const salt = scaledIngredients.find((i) => i.name === 'Salt')!;
+    expect(
+      screen.getByText(
+        new RegExp(
+          `${escapeRegExp(String(water.grams))}g Water, ${escapeRegExp(String(yeast.grams))}g Yeast \\(instant dry\\)`,
+        ),
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        new RegExp(`${escapeRegExp(String(flour.grams))}g Flour, ${escapeRegExp(String(salt.grams))}g Salt`),
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('displayed gram quantities reflect scaledIngredients for the batch, not a hardcoded figure', () => {
+    const smallBatch: ReadonlyArray<ScaledIngredient> = resolveScaledIngredients(pizzaRecipe, 'same-day', {
+      ballCount: 2,
+      ballWeightG: 250,
+    });
+    const largeBatch: ReadonlyArray<ScaledIngredient> = resolveScaledIngredients(pizzaRecipe, 'same-day', {
+      ballCount: 6,
+      ballWeightG: 300,
+    });
+    const smallFlour = smallBatch.find((i) => i.name === 'Flour')!;
+    const largeFlour = largeBatch.find((i) => i.name === 'Flour')!;
+    expect(smallFlour.grams).not.toBe(largeFlour.grams); // sanity: fixtures actually differ
+
+    const howStep = { action: 'Add the flour and salt.', ingredientRefs: ['Flour'] };
+
+    mockStore(
+      buildSession({ workflow: [buildStep({ stageId: 'mix', name: 'Mix', how: [howStep] })] }),
+      { scaledIngredients: smallBatch },
+    );
+    const { unmount } = render(<StepRunnerScreen />);
+    expect(screen.getByText(new RegExp(`${escapeRegExp(String(smallFlour.grams))}g Flour`))).toBeInTheDocument();
+    unmount();
+
+    mockStore(
+      buildSession({ workflow: [buildStep({ stageId: 'mix', name: 'Mix', how: [howStep] })] }),
+      { scaledIngredients: largeBatch },
+    );
+    render(<StepRunnerScreen />);
+    expect(screen.getByText(new RegExp(`${escapeRegExp(String(largeFlour.grams))}g Flour`))).toBeInTheDocument();
+  });
+
+  it('a step with no "how" renders unchanged (regression: no empty list, no crash)', () => {
+    mockStore(buildSession({ workflow: [buildStep({ stageId: 'mix', name: 'Mix' })] }));
+
+    render(<StepRunnerScreen />);
+
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+  });
+
+  it('an ingredientRef that fails to resolve renders the action text without a quantity (no crash)', () => {
+    mockStore(
+      buildSession({
+        workflow: [
+          buildStep({
+            stageId: 'mix',
+            name: 'Mix',
+            how: [{ action: 'Add a mystery ingredient.', ingredientRefs: ['Not A Real Ingredient'] }],
+          }),
+        ],
+      }),
+      { scaledIngredients: [{ name: 'Flour', grams: 500 }] },
+    );
+
+    expect(() => render(<StepRunnerScreen />)).not.toThrow();
+    expect(screen.getByText('Add a mystery ingredient.')).toBeInTheDocument();
+    expect(screen.queryByText(/g Not A Real Ingredient/)).not.toBeInTheDocument();
   });
 });
 
