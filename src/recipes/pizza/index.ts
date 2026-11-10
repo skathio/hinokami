@@ -403,6 +403,8 @@ export const pizzaRecipe: Recipe = {
   id: createRecipeId('pizza-neapolitan-home'),
   name: 'Neapolitan-style pizza',
   description: 'Home-oven Neapolitan-style dough with same-day and cold-ferment paths.',
+  shortName: 'Neapolitan',
+  icon: 'recipes/neapolitan.svg',
   formula: pizzaFormula,
   pathways: [sameDayPathway, coldFermentPathway],
   bounds: pizzaBounds,

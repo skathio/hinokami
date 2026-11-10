@@ -93,6 +93,8 @@ function mixWithOil(): HowStep[] {
 function buildStyle(opts: {
   id: string;
   name: string;
+  shortName: string;
+  icon: string;
   description: string;
   water: number;
   oil: number;
@@ -109,6 +111,8 @@ function buildStyle(opts: {
     ...pizzaRecipe,
     id: createRecipeId(opts.id),
     name: opts.name,
+    shortName: opts.shortName,
+    icon: opts.icon,
     description: opts.description,
     formula: formulaFor(pizzaRecipe.formula, opts),
     pathways,
@@ -121,6 +125,8 @@ function buildStyle(opts: {
 export const sicilianRecipe: Recipe = buildStyle({
   id: 'pizza-sicilian-home',
   name: 'Sicilian pizza',
+  shortName: 'Sicilian',
+  icon: 'recipes/sicilian.svg',
   description: 'Thick, airy, oily-crisp pan pizza with same-day and cold-ferment paths.',
   water: 72,
   oil: 4,
@@ -142,6 +148,8 @@ export const sicilianRecipe: Recipe = buildStyle({
 export const romanRecipe: Recipe = buildStyle({
   id: 'pizza-roman-home',
   name: 'Roman pizza',
+  shortName: 'Roman',
+  icon: 'recipes/roman.svg',
   description: 'Thin, crisp, high-hydration Roman-style dough with same-day and cold-ferment paths.',
   water: 70,
   oil: 2,

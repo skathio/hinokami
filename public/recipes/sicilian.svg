@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512" role="img" aria-label="Sicilian pizza">
+  <!-- A square pan pizza, its top dimpled by oiled fingers. -->
+  <rect width="100" height="100" rx="22" fill="#d23215"/>
+  <rect x="21" y="21" width="58" height="58" rx="9" fill="none" stroke="#fff7f0" stroke-width="8.5"/>
+  <g fill="#fff7f0">
+    <circle cx="38" cy="38" r="3.8"/><circle cx="50" cy="38" r="3.8"/><circle cx="62" cy="38" r="3.8"/>
+    <circle cx="38" cy="50" r="3.8"/><circle cx="50" cy="50" r="3.8"/><circle cx="62" cy="50" r="3.8"/>
+    <circle cx="38" cy="62" r="3.8"/><circle cx="50" cy="62" r="3.8"/><circle cx="62" cy="62" r="3.8"/>
+  </g>
+</svg>

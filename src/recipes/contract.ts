@@ -196,6 +196,11 @@ export interface Recipe {
   readonly id: RecipeId;
   readonly name: string;
   readonly description: string;
+  /** Compact label for places that list recipes side by side; falls back to `name`. */
+  readonly shortName?: string;
+  /** Icon path relative to the app's base URL (a file under `public/`); falls back to the app
+   * mark. Optional fields, so adding them is not a breaking change to the contract. */
+  readonly icon?: string;
 
   readonly formula: BakersPercentageFormula;
   readonly pathways: ReadonlyArray<Pathway>;
