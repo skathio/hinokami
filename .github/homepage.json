@@ -1,0 +1,11 @@
+{
+  "name": "Hinokami",
+  "kind": "Web app",
+  "tagline": "A pizza helper: dough, timings and oven steps for each style, by the numbers.",
+  "tags": [
+    "React",
+    "PWA"
+  ],
+  "colour": "#d23215",
+  "image": "public/mark.svg"
+}
