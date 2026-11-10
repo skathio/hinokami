@@ -1,0 +1,19 @@
+name: pr
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  ci:
+    uses: skathio/hashira/.github/workflows/static-webapp-ci.yml@e4facc4ca8d8896285931a3b80a1a958584d1a85
+    permissions:
+      contents: read
+      id-token: write
+      pages: write
+      pull-requests: write
+      security-events: write
+    with:
+      node_version: '20'
+      build_command: 'npm run build'
+      library_ref: 'e4facc4ca8d8896285931a3b80a1a958584d1a85'
