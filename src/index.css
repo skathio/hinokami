@@ -9,9 +9,9 @@
   src: url("./fonts/bricolage-grotesque-latin-wght.woff2") format("woff2");
 }
 
-/* Semantic colour tokens, light values. Brand colours are hex on purpose. The ember is the
-   primary action (always paired with --color-on-ember text); gold marks times; the SoMi red is only ever a
-   filled shape in the logo and is never a colour token. */
+/* Semantic colour tokens, light values. Brand colours are hex on purpose. `ember` is the Kagura
+   vermilion primary action, the same fill in both themes and always paired with --color-on-ember
+   (white) text; `accent` is the vermilion tuned for text on each theme's ground; gold marks times. */
 @theme static {
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-display: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -22,13 +22,13 @@
   --color-ink: #1c1512;
   --color-muted: #5c5148;
   --color-line: #d9cfc3;
-  --color-accent: #b23a0a;
-  --color-accent-soft: #fde5d8;
-  --color-ember: #ff6a2b;
+  --color-accent: #b3260d;
+  --color-accent-soft: #fde2db;
+  --color-ember: #d23215;
   --color-sun: #7a4e00;
   --color-caution: #8a4600;
   --color-danger: #b42318;
-  --color-on-ember: #14100e;
+  --color-on-ember: #ffffff;
 }
 
 /* Same names, swapped values. Set on <html data-theme> before first paint (index.html). */
@@ -39,13 +39,13 @@
   --color-ink: #f6eee7;
   --color-muted: #b5a79c;
   --color-line: #3b312b;
-  --color-accent: #ff8a4d;
-  --color-accent-soft: #3a1d11;
-  --color-ember: #ff6a2b;
+  --color-accent: #ff6b4f;
+  --color-accent-soft: #3d140c;
+  --color-ember: #d23215;
   --color-sun: #f5a524;
   --color-caution: #fbbf24;
   --color-danger: #ff8077;
-  --color-on-ember: #14100e;
+  --color-on-ember: #ffffff;
   color-scheme: dark;
 }
 

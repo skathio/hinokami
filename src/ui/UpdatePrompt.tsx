@@ -37,7 +37,7 @@ export default function UpdatePrompt() {
       <button
         type="button"
         onClick={handleReload}
-        className="min-h-11 shrink-0 rounded-md bg-ember px-4 font-semibold text-on-ember hover:brightness-110"
+        className="min-h-11 shrink-0 rounded-md bg-ember px-4 font-semibold text-on-ember hover:brightness-90"
       >
         Reload
       </button>

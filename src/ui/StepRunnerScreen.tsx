@@ -94,7 +94,7 @@ export default function StepRunnerScreen() {
         <button
           type="button"
           onClick={resetSession}
-          className="min-h-14 rounded-xl bg-ember px-8 py-3 text-2xl font-bold text-on-ember hover:brightness-110"
+          className="min-h-14 rounded-xl bg-ember px-8 py-3 text-2xl font-bold text-on-ember hover:brightness-90"
         >
           Start a new bake
         </button>
@@ -227,7 +227,7 @@ export default function StepRunnerScreen() {
           <button
             type="button"
             onClick={advanceStep}
-            className="min-h-16 w-full rounded-xl bg-ember px-4 py-4 text-2xl font-bold text-on-ember hover:brightness-110"
+            className="min-h-16 w-full rounded-xl bg-ember px-4 py-4 text-2xl font-bold text-on-ember hover:brightness-90"
           >
             Done — next step
           </button>

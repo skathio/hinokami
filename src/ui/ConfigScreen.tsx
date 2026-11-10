@@ -388,7 +388,7 @@ export default function ConfigScreen({ recipe }: ConfigScreenProps) {
         <div className="sticky bottom-0 border-t border-line bg-canvas px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
           <button
             type="submit"
-            className="min-h-14 w-full rounded-xl bg-ember px-4 py-4 text-lg font-bold text-on-ember hover:brightness-110"
+            className="min-h-14 w-full rounded-xl bg-ember px-4 py-4 text-lg font-bold text-on-ember hover:brightness-90"
           >
             Generate
           </button>

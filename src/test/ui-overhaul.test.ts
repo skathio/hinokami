@@ -82,10 +82,10 @@ describe('semantic colour tokens', () => {
     expect(css()).not.toMatch(/oklch/i);
   });
 
-  it('ember is #ff6a2b in the dark theme and sun is gold #f5a524', () => {
-    const t = tokens(true);
-    expect(t.ember.toLowerCase()).toBe('#ff6a2b');
-    expect(t.sun.toLowerCase()).toBe('#f5a524');
+  it('the primary action is Kagura vermilion #d23215 in both themes, and sun stays gold #f5a524 in dark', () => {
+    expect(tokens(false).ember.toLowerCase()).toBe('#d23215');
+    expect(tokens(true).ember.toLowerCase()).toBe('#d23215');
+    expect(tokens(true).sun.toLowerCase()).toBe('#f5a524');
   });
 
   it('SoMi red #cc1111 is never a text or token colour in the app', () => {
@@ -109,9 +109,19 @@ describe('WCAG AA contrast of text/background pairs', () => {
     });
   }
 
-  it('dark text on the ember primary action is at least 4.5:1 in dark theme', () => {
-    const t = tokens(true);
-    expect(contrast(t.canvas, t.ember)).toBeGreaterThanOrEqual(4.5);
+  it.each(['light', 'dark'])('%s: on-ember text on the vermilion primary action is at least 4.5:1', (theme) => {
+    const t = tokens(theme === 'dark');
+    expect(contrast(t['on-ember'], t.ember)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(['light', 'dark'])('%s: accent text is at least 4.5:1 on canvas, surface and accent-soft', (theme) => {
+    const t = tokens(theme === 'dark');
+    for (const bg of ['canvas', 'surface', 'accent-soft']) expect(contrast(t.accent, t[bg]), bg).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(['light', 'dark'])('%s: the vermilion focus ring and rail stand out from the canvas at 3:1', (theme) => {
+    const t = tokens(theme === 'dark');
+    expect(contrast(t.ember, t.canvas)).toBeGreaterThanOrEqual(3);
   });
 });
 
