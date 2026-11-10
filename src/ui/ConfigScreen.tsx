@@ -71,7 +71,10 @@ function initialValues(bounds: RecipeBounds): FormValues {
     hasStoneOrSteel: false,
     ambientC: DEFAULT_AMBIENT_C,
     ballCount: '',
-    ballWeightG: Math.min(Math.max(DEFAULT_BALL_WEIGHT_G, bounds.ballWeightGMin), bounds.ballWeightGMax),
+    ballWeightG: Math.min(
+      Math.max(bounds.ballWeightGDefault ?? DEFAULT_BALL_WEIGHT_G, bounds.ballWeightGMin),
+      bounds.ballWeightGMax,
+    ),
     pathway: '',
   };
 }

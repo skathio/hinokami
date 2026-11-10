@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import ConfigScreen from '../ConfigScreen';
 import { pizzaRecipe } from '@/recipes/pizza';
-import { sicilianRecipe } from '@/recipes/pizza/styles';
+import { romanRecipe, sicilianRecipe } from '@/recipes/pizza/styles';
 import { useSessionStore, type SessionStore } from '@/store/session';
 import * as sessionStoreModule from '@/store/session';
 import { generateWorkflow, type WorkflowInputs } from '@/engine';
@@ -334,6 +334,11 @@ describe('ConfigScreen default ball weight', () => {
     const weight = Number((screen.getByLabelText('Weight per ball (g)') as HTMLInputElement).value);
     expect(weight).toBeGreaterThanOrEqual(sicilianRecipe.bounds.ballWeightGMin);
     expect(weight).toBeLessThanOrEqual(sicilianRecipe.bounds.ballWeightGMax);
+  });
+
+  it('opens at the recipe’s own default weight when it sets one', () => {
+    render(<ConfigScreen recipe={romanRecipe} />);
+    expect((screen.getByLabelText('Weight per ball (g)') as HTMLInputElement).value).toBe('300');
   });
 
   it('keeps 250 g for a recipe whose range includes it', () => {

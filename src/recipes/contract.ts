@@ -132,6 +132,8 @@ export interface RecipeBounds {
   readonly ballCountMax: number;
   readonly ballWeightGMin: number;
   readonly ballWeightGMax: number;
+  /** Weight the config form starts at; optional, so omitting it keeps the form's own default. */
+  readonly ballWeightGDefault?: number;
   /** Minimum oven max temperature (°C) this recipe can adapt to at all (below this,
    * `adaptBake` returns `OvenTooCold`). */
   readonly ovenMin: number;

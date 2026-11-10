@@ -239,7 +239,7 @@ const TEMPER_MINUTES = 150;
 
 /** Q10 = 2 per 10 °C: `duration = base × 2^((24 − ambientC) / 10)`. Strictly decreasing in
  * `ambientC` for Q10 > 1 — the D13 monotonicity invariant holds by construction. */
-function q10Minutes(baseMinutes: number, ambientC: number): number {
+export function q10Minutes(baseMinutes: number, ambientC: number): number {
   return baseMinutes * FERMENTATION_Q10 ** ((REFERENCE_AMBIENT_C - ambientC) / 10);
 }
 
