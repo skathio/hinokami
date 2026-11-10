@@ -18,11 +18,23 @@ jobs:
       node_version: '20'
       build_command: 'npm run build'    # literal, never derived from PR context (NFR-9)
       library_ref: 'e4facc4ca8d8896285931a3b80a1a958584d1a85'  # MUST match the uses: SHA above
-  deploy:
-    needs: ci   # same-run artifact handoff — omitting this makes deploy start before the
-                # artifact is uploaded and fail with "no artifact found"
+  # One release, one approval: the deploy is Hinokami's release, so after CI passes it waits here
+  # for the `production` Environment's owner approval. `github-pages` itself carries no reviewer,
+  # so the approval is asked once, for a build that is already green.
+  gate:
+    needs: ci
     runs-on: ubuntu-latest
-    environment: github-pages   # the gate — configure with >=1 required reviewer (see below)
+    environment: production
+    permissions: {}
+    steps:
+      - name: Owner approval
+        run: echo "Approved in the production environment."
+
+  deploy:
+    needs: [ci, gate]   # ci: same-run artifact handoff — omitting it makes deploy start before the
+                        # artifact is uploaded and fail with "no artifact found"; gate: the approval
+    runs-on: ubuntu-latest
+    environment: github-pages   # main only; the approval is at `gate`
     permissions:
       contents: read
       pages: write               # required by deploy-pages
