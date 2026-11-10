@@ -4,6 +4,7 @@
 
 import type { Recipe, RecipeId } from './contract';
 import { pizzaRecipe } from './pizza';
+import { romanRecipe, sicilianRecipe } from './pizza/styles';
 
 export interface RecipeRegistry {
   register(recipe: Recipe): void;
@@ -37,3 +38,5 @@ export function createRecipeRegistry(): RecipeRegistry {
 export const recipeRegistry: RecipeRegistry = createRecipeRegistry();
 
 recipeRegistry.register(pizzaRecipe);
+recipeRegistry.register(sicilianRecipe);
+recipeRegistry.register(romanRecipe);
