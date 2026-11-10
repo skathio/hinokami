@@ -132,6 +132,8 @@ export interface RecipeBounds {
   readonly ballCountMax: number;
   readonly ballWeightGMin: number;
   readonly ballWeightGMax: number;
+  /** Weight the config form starts at; optional, so omitting it keeps the form's own default. */
+  readonly ballWeightGDefault?: number;
   /** Minimum oven max temperature (°C) this recipe can adapt to at all (below this,
    * `adaptBake` returns `OvenTooCold`). */
   readonly ovenMin: number;
@@ -196,6 +198,11 @@ export interface Recipe {
   readonly id: RecipeId;
   readonly name: string;
   readonly description: string;
+  /** Compact label for places that list recipes side by side; falls back to `name`. */
+  readonly shortName?: string;
+  /** Icon path relative to the app's base URL (a file under `public/`); falls back to the app
+   * mark. Optional fields, so adding them is not a breaking change to the contract. */
+  readonly icon?: string;
 
   readonly formula: BakersPercentageFormula;
   readonly pathways: ReadonlyArray<Pathway>;

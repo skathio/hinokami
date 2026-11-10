@@ -46,8 +46,17 @@ export default function RecipeSelectScreen({ onSelect }: RecipeSelectScreenProps
                 onClick={() => onSelect(recipe)}
                 className="flex min-h-11 w-full items-center gap-4 rounded-lg border border-line bg-surface p-4 text-left hover:border-ember focus:outline-none focus:ring-2 focus:ring-ember"
               >
+                <img
+                  src={`${import.meta.env.BASE_URL}${recipe.icon ?? 'mark.svg'}`}
+                  alt=""
+                  width={48}
+                  height={48}
+                  className="shrink-0"
+                />
                 <span className="flex-1">
-                  <span className="block font-display text-2xl font-bold">{recipe.name}</span>
+                  <span className="block font-display text-2xl font-bold">
+                    {recipe.shortName ?? recipe.name}
+                  </span>
                   <span className="block text-sm text-muted">{recipe.description}</span>
                 </span>
                 <span aria-hidden="true" className="text-2xl text-accent">

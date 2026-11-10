@@ -62,14 +62,19 @@ const DEFAULT_BALL_WEIGHT_G = 250;
 const OVEN_INPUT_MIN_C = 100;
 const OVEN_INPUT_MAX_C = 400;
 
-function initialValues(): FormValues {
+// The default weight is clamped into the recipe's range, so a recipe with larger pieces (a pan
+// pizza) does not open with a value its own validation rejects.
+function initialValues(bounds: RecipeBounds): FormValues {
   return {
     targetTime: '',
     ovenMaxC: '',
     hasStoneOrSteel: false,
     ambientC: DEFAULT_AMBIENT_C,
     ballCount: '',
-    ballWeightG: DEFAULT_BALL_WEIGHT_G,
+    ballWeightG: Math.min(
+      Math.max(bounds.ballWeightGDefault ?? DEFAULT_BALL_WEIGHT_G, bounds.ballWeightGMin),
+      bounds.ballWeightGMax,
+    ),
     pathway: '',
   };
 }
@@ -180,7 +185,7 @@ export default function ConfigScreen({ recipe }: ConfigScreenProps) {
   const startSession = useSessionStore((state) => state.startSession);
   const setView = useSessionStore((state) => state.setView);
 
-  const [values, setValues] = useState<FormValues>(initialValues);
+  const [values, setValues] = useState<FormValues>(() => initialValues(recipe.bounds));
   const [touched, setTouched] = useState<Partial<Record<keyof FormValues, boolean>>>({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [ovenTooCold, setOvenTooCold] = useState<OvenTooCold | null>(null);
