@@ -62,6 +62,52 @@ describe('restore', () => {
   });
 });
 
+describe('restore — rejects stored values the app cannot run', () => {
+  // localStorage is shared by every page on the origin (all skathio.github.io project pages), so a
+  // stored session is untrusted input: anything that would crash or mislead the runner is dropped.
+  const tampered = (patch: Record<string, unknown>) => JSON.stringify({ ...JSON.parse(serialize(buildSession())), ...patch });
+  const withInputs = (patch: Record<string, unknown>) =>
+    tampered({ inputs: { ...buildSession().inputs, ...patch } });
+
+  it.each([
+    ['past the last step', 2],
+    ['negative', -1],
+    ['fractional', 0.5],
+    ['not finite', Number.MAX_VALUE * 10],
+  ])('rejects a stepIndex that is %s', (_label, stepIndex) => {
+    expect(restore(tampered({ stepIndex }))).toBeNull();
+  });
+
+  it('rejects an empty workflow', () => {
+    expect(restore(tampered({ workflow: [], stepIndex: 0 }))).toBeNull();
+  });
+
+  it('keeps a completed session that sits on its last step', () => {
+    expect(restore(tampered({ stepIndex: 1, status: 'completed' }))).not.toBeNull();
+  });
+
+  it.each([
+    ['ballCount', -3],
+    ['ballCount', 0],
+    ['ballCount', 2.5],
+    ['ballWeightG', 0],
+    ['ballWeightG', -250],
+    ['ovenMaxC', 0],
+    ['ovenMaxC', -10],
+  ])('rejects inputs.%s = %s', (field, value) => {
+    expect(restore(withInputs({ [field]: value }))).toBeNull();
+  });
+
+  it('rejects an unparseable target time', () => {
+    expect(restore(withInputs({ targetTime: 'not a date' }))).toBeNull();
+  });
+
+  it('rejects a step with a negative duration', () => {
+    const [first, second] = JSON.parse(serialize(buildSession())).workflow;
+    expect(restore(tampered({ workflow: [{ ...first, durationMinutes: -5 }, second] }))).toBeNull();
+  });
+});
+
 describe('how (D2, D6, iteration 2.1)', () => {
   it('round-trips a workflow step with a how array present', () => {
     const session = buildSession();

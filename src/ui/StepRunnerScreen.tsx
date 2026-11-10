@@ -2,7 +2,7 @@
 // looking at. Shows exactly the current step: its name, why it matters, its scheduled time, and
 // (when the underlying stage carries a `cue`) an estimate framing, since fermentation times are
 // never presented as precise (NFR-5). A single primary action ("Done — next step") advances;
-// everything else (back, nudge, timeline, abandon) is secondary. Drives the wake-lock hook off
+// everything else (back, nudge, recipe, timeline, abandon) is secondary. Drives the wake-lock hook off
 // `isStepActive` and renders the completion screen once the session's `status` flips to
 // `'completed'` (`engine/progression.ts`'s `advance`).
 
@@ -16,6 +16,9 @@ import AbandonConfirmDialog from './AbandonConfirmDialog';
 import TimelineOverview from './TimelineOverview';
 import RecipeCard from './RecipeCard';
 import CountdownTimer from './CountdownTimer';
+import Wordmark from './Wordmark';
+import ThemeToggle from './ThemeToggle';
+import { formatClockTime, isOvernight } from './stepTime';
 
 const ESTIMATE_LABEL = 'Estimated — trust dough feel over the clock.';
 
@@ -27,12 +30,12 @@ function devWarn(message: string): void {
   }
 }
 
-/** Resolves a `HowStep`'s `ingredientRefs` against the store's `scaledIngredients` (iteration
- * 2.2, NF7: never a hardcoded gram figure). A ref with no match in `scaledIngredients` is
- * skipped — the caller renders the action text without a quantity for it (graceful, not a
- * crash) — and fires a `devWarn` naming the unresolved ref, since a mismatch here is a real
- * content bug (an `ingredientRefs` entry that doesn't match a `FormulaIngredient.name`), not an
- * expected runtime state. */
+/** Resolves a `HowStep`'s `ingredientRefs` against the store's `scaledIngredients` (never a
+ * hardcoded gram figure). A ref with no match in `scaledIngredients` is skipped — the caller
+ * renders the action text without a quantity for it (graceful, not a crash) — and fires a
+ * `devWarn` naming the unresolved ref, since a mismatch here is a real content bug (an
+ * `ingredientRefs` entry that doesn't match a `FormulaIngredient.name`), not an expected runtime
+ * state. */
 function resolveHowIngredientRefs(
   ingredientRefs: ReadonlyArray<string> | undefined,
   scaledIngredients: ReadonlyArray<ScaledIngredient> | null,
@@ -58,9 +61,8 @@ function resolveHowIngredientRefs(
  * needs a different id. */
 const BAKE_STAGE_ID = 'bake';
 
-function formatClockTime(date: Date): string {
-  return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-}
+const secondaryButton =
+  'min-h-11 rounded-md border border-line px-1 py-2 text-sm font-medium leading-tight text-ink hover:bg-surface-2';
 
 export default function StepRunnerScreen() {
   const session = useSessionStore((state) => state.session);
@@ -86,12 +88,13 @@ export default function StepRunnerScreen() {
 
   if (session.status === 'completed') {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-charcoal-950 p-6 text-center text-charcoal-100">
-        <h1 className="text-3xl font-bold">You&apos;re done — enjoy your pizza</h1>
+      <main className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-canvas p-6 text-center text-ink">
+        <Wordmark className="text-3xl" />
+        <h1 className="font-display text-4xl font-bold">You&apos;re done — enjoy your pizza</h1>
         <button
           type="button"
           onClick={resetSession}
-          className="min-h-11 rounded-md bg-ember-500 px-6 py-3 text-2xl font-semibold text-charcoal-950 hover:bg-ember-400"
+          className="min-h-14 rounded-xl bg-ember px-8 py-3 text-2xl font-bold text-on-ember hover:brightness-90"
         >
           Start a new bake
         </button>
@@ -101,59 +104,94 @@ export default function StepRunnerScreen() {
 
   const currentStep = session.workflow[session.stepIndex];
   const isBakeStep = currentStep.stageId === BAKE_STAGE_ID;
-  // Iteration 1.2: the adapted bake temp/time renders unconditionally whenever
-  // `bakeAdaptation` exists — previously only `.caveat` rendered, and only when present
-  // (`session.ts:172` computes the spec, but the UI discarded it). `caveat` stays a separate,
-  // narrower condition (present only for a best-effort 200-219 °C bake) — unchanged below.
+  // The adapted bake temp/time renders whenever `bakeAdaptation` exists; `caveat` is narrower
+  // (present only for a best-effort 200-219 °C bake).
   const bakeSpec = isBakeStep ? session.bakeAdaptation : undefined;
   const caveat = isBakeStep ? session.bakeAdaptation?.caveat : undefined;
-  // Runner progress indicator (iteration 3.2): a filled bar reflecting how far through the
-  // workflow the baker is. Deliberately `stepIndex / workflow.length` (not `+1`), per the phase
-  // file's own formula — the bar fills as steps are completed, reaching 100% only once `advance`
-  // flips `status` to `'completed'` and this component returns the completion screen instead.
+  // Completed-steps fraction (`stepIndex / workflow.length`): it reaches 100% only once `advance`
+  // flips `status` to `'completed'` and the completion screen renders instead.
   const progressPercent = Math.round((session.stepIndex / session.workflow.length) * 100);
 
   return (
-    <main className="flex min-h-screen flex-col bg-charcoal-950 text-charcoal-100">
+    <main className="flex min-h-dvh flex-col bg-canvas text-ink">
       <WakeLockHint visible={wakeLockUnavailable} />
 
-      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-between gap-6 p-6">
+      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-5 pt-3">
+        <div className="flex items-center justify-between">
+          <Wordmark className="text-xl" />
+          <ThemeToggle />
+        </div>
+
+        {/* The rail below is the visual; this gives screen readers the overall percentage too. */}
+        <div
+          role="progressbar"
+          aria-valuenow={progressPercent}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Bake progress"
+          className="sr-only"
+        />
+        <ol aria-label="Progress" className="flex gap-1.5">
+          {session.workflow.map((step, index) => {
+            const state = index < session.stepIndex ? 'done' : index === session.stepIndex ? 'current' : 'upcoming';
+            return (
+              <li
+                key={step.stageId}
+                aria-current={state === 'current' ? 'step' : undefined}
+                className="flex-1"
+              >
+                <span
+                  aria-hidden="true"
+                  className={`block h-2 rounded-full ${
+                    state === 'done' ? 'bg-ember' : state === 'current' ? 'bg-sun' : 'bg-line'
+                  }`}
+                />
+                <span className="sr-only">
+                  {step.name}, {state}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+
         <div>
-          <p className="text-sm text-charcoal-400">
-            Step {session.stepIndex + 1} of {session.workflow.length} · {formatClockTime(currentStep.clockStartTime)}
+          <p className="text-base font-medium text-muted">
+            Step {session.stepIndex + 1} of {session.workflow.length} ·{' '}
+            <span className="font-semibold text-sun">{formatClockTime(currentStep.clockStartTime)}</span>
           </p>
-          <div
-            role="progressbar"
-            aria-valuenow={progressPercent}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label="Bake progress"
-            className="mt-2 h-2 w-full overflow-hidden rounded-full bg-charcoal-800"
-          >
-            <div
-              className="h-full rounded-full bg-ember-500 transition-all"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
-          <CountdownTimer />
-          <h1 className="mt-2 text-3xl font-bold">{currentStep.name}</h1>
-          <p className="mt-3 text-lg text-charcoal-300">{currentStep.why}</p>
+          {isOvernight(currentStep) && (
+            <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-accent-soft px-3 py-1 text-sm font-semibold text-accent">
+              <span aria-hidden="true">☾</span> Overnight step
+            </p>
+          )}
+          <h1 className="mt-3 font-display text-5xl font-extrabold leading-[1.05] tracking-tight">
+            {currentStep.name}
+          </h1>
+          {bakeSpec && (
+            <div className="mt-4 rounded-xl border border-line bg-surface p-4">
+              <p className="font-display text-3xl font-extrabold tracking-tight text-sun">
+                {bakeSpec.bakeTempC}°C for {Math.round(bakeSpec.bakeTimeMinutes)} min
+              </p>
+            </div>
+          )}
+
+          <p className="mt-4 text-2xl leading-snug text-ink">{currentStep.why}</p>
 
           {currentStep.isEstimate && (
-            <div className="mt-4 rounded-md border border-charcoal-700 bg-charcoal-900 p-4">
-              <p className="text-sm font-medium text-charcoal-400">{ESTIMATE_LABEL}</p>
-              {currentStep.cue && <p className="mt-1 text-charcoal-100">{currentStep.cue}</p>}
+            <div className="mt-5 rounded-xl border border-line bg-surface p-4">
+              <p className="text-sm font-medium text-muted">{ESTIMATE_LABEL}</p>
+              {currentStep.cue && <p className="mt-1 text-xl text-ink">{currentStep.cue}</p>}
             </div>
           )}
 
           {currentStep.how && (
-            <ol className="mt-4 list-decimal space-y-2 pl-5 text-charcoal-100">
+            <ol aria-label="How" className="mt-5 list-decimal space-y-3 pl-6 text-xl leading-snug text-ink marker:font-semibold marker:text-accent">
               {currentStep.how.map((howStep) => {
                 const resolved = resolveHowIngredientRefs(howStep.ingredientRefs, scaledIngredients);
                 return (
                   <li key={howStep.action}>
                     {resolved.length > 0 && (
-                      <span className="font-medium text-charcoal-50">
+                      <span className="font-semibold text-ink">
                         {resolved.map((ingredient) => `${ingredient.grams}g ${ingredient.name}`).join(', ')}
                         :{' '}
                       </span>
@@ -165,75 +203,53 @@ export default function StepRunnerScreen() {
             </ol>
           )}
 
-          {bakeSpec && (
-            <div className="mt-4 rounded-md border border-charcoal-700 bg-charcoal-900 p-4">
-              <p className="text-lg font-semibold text-charcoal-100">
-                {bakeSpec.bakeTempC}°C for {Math.round(bakeSpec.bakeTimeMinutes)} min
-              </p>
-            </div>
-          )}
-
           {caveat && (
             <div
               role="note"
               aria-label="Bake caveat"
-              className="mt-4 rounded-md border border-amber-700 bg-amber-950/40 p-4 text-amber-100"
+              className="mt-5 rounded-xl border border-caution bg-surface p-4 text-ink"
             >
               <p>{caveat}</p>
             </div>
           )}
 
           {nudgeOpen && (
-            <div className="mt-4">
+            <div className="mt-5">
               <NudgePanel onClose={() => setNudgeOpen(false)} />
             </div>
           )}
         </div>
+      </div>
 
-        <div className="space-y-3">
+      <div className="sticky bottom-0 border-t border-line bg-canvas pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
+        <div className="mx-auto w-full max-w-lg space-y-3 px-5">
+          <CountdownTimer />
           <button
             type="button"
             onClick={advanceStep}
-            className="min-h-11 w-full rounded-md bg-ember-500 px-4 py-4 text-2xl font-semibold text-charcoal-950 hover:bg-ember-400"
+            className="min-h-16 w-full rounded-xl bg-ember px-4 py-4 text-2xl font-bold text-on-ember hover:brightness-90"
           >
             Done — next step
           </button>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={backStep}
-              className="min-h-11 flex-1 rounded-md border border-charcoal-600 px-4 py-2 font-medium text-charcoal-100 hover:bg-charcoal-800"
-            >
+          <div className="grid grid-cols-5 gap-1.5">
+            <button type="button" onClick={backStep} className={secondaryButton}>
               Go back
             </button>
             <button
               type="button"
+              aria-expanded={nudgeOpen}
               onClick={() => setNudgeOpen((open) => !open)}
-              className="min-h-11 flex-1 rounded-md border border-charcoal-600 px-4 py-2 font-medium text-charcoal-100 hover:bg-charcoal-800"
+              className={secondaryButton}
             >
               Nudge pace
             </button>
-          </div>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => setRecipeCardOpen(true)}
-              className="min-h-11 flex-1 rounded-md border border-charcoal-700 px-4 py-2 text-sm text-charcoal-300 hover:bg-charcoal-800"
-            >
+            <button type="button" onClick={() => setRecipeCardOpen(true)} className={secondaryButton}>
               Recipe
             </button>
-            <button
-              type="button"
-              onClick={() => setTimelineOpen(true)}
-              className="min-h-11 flex-1 rounded-md border border-charcoal-700 px-4 py-2 text-sm text-charcoal-300 hover:bg-charcoal-800"
-            >
+            <button type="button" onClick={() => setTimelineOpen(true)} className={secondaryButton}>
               Timeline
             </button>
-            <button
-              type="button"
-              onClick={() => setAbandonOpen(true)}
-              className="min-h-11 flex-1 rounded-md border border-charcoal-700 px-4 py-2 text-sm text-charcoal-400 hover:bg-charcoal-800"
-            >
+            <button type="button" onClick={() => setAbandonOpen(true)} className={secondaryButton}>
               Abandon bake
             </button>
           </div>

@@ -117,6 +117,37 @@ describe('CountdownTimer — wall-clock tick (a)', () => {
   });
 });
 
+describe('CountdownTimer — long waits', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('reads in hours and minutes once the step is two hours or more away', () => {
+    vi.useFakeTimers();
+    const baseNow = new Date('2026-07-19T10:00:00');
+    vi.setSystemTime(baseNow);
+    const start = new Date(baseNow.getTime() + 21 * 3_600_000);
+    mockStore(
+      buildSession({ workflow: [buildStep({ clockStartTime: start, durationMinutes: 19, isEstimate: false })] }),
+    );
+
+    render(<CountdownTimer />);
+
+    expect(screen.getByText(/≈21 h 19 m left/)).toBeInTheDocument();
+  });
+
+  it('keeps the minutes form just under two hours', () => {
+    vi.useFakeTimers();
+    const baseNow = new Date('2026-07-19T10:00:00');
+    vi.setSystemTime(baseNow);
+    mockStore(buildSession({ workflow: [buildStep({ clockStartTime: baseNow, durationMinutes: 119, isEstimate: false })] }));
+
+    render(<CountdownTimer />);
+
+    expect(screen.getByText(/≈119m left/)).toBeInTheDocument();
+  });
+});
+
 describe('CountdownTimer — reactivity to a real pace-nudge reschedule (b, plan review F-1)', () => {
   it(
     'reflects the RESCHEDULED end time after a real store applyNudge call, without remounting',

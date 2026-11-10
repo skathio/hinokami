@@ -45,33 +45,33 @@ export default function NudgePanel({ onClose }: NudgePanelProps) {
   });
 
   return (
-    <div className="rounded-lg border border-charcoal-700 bg-charcoal-900 p-4">
+    <div className="rounded-lg border border-line bg-surface p-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-charcoal-200">Nudge pace</p>
+        <p className="text-sm font-medium text-ink">Nudge pace</p>
         <button
           type="button"
           onClick={onClose}
           aria-label="Close nudge panel"
-          className="min-h-11 min-w-11 rounded-md text-charcoal-400 hover:text-charcoal-100"
+          className="min-h-11 min-w-11 rounded-md text-muted hover:text-ink"
         >
           ✕
         </button>
       </div>
-      <p className="mt-1 text-sm text-charcoal-400">Next step time: {formattedTime}</p>
+      <p className="mt-1 text-sm text-muted">Next step time: {formattedTime}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         {NUDGE_DELTAS_MINUTES.map((deltaMinutes) => (
           <button
             key={deltaMinutes}
             type="button"
             onClick={() => handleNudge(deltaMinutes)}
-            className="min-h-11 min-w-11 rounded-md border border-charcoal-600 px-4 py-2 font-medium text-charcoal-100 hover:bg-charcoal-800"
+            className="min-h-11 min-w-11 rounded-md border border-line px-4 py-2 font-medium text-ink hover:bg-surface-2"
           >
             {deltaMinutes > 0 ? `+${deltaMinutes}` : deltaMinutes} min
           </button>
         ))}
       </div>
       {hasPressed && lastNudgeClamped && (
-        <p role="status" className="mt-2 text-sm text-amber-300">
+        <p role="status" className="mt-2 text-sm text-caution">
           Can&apos;t go further in that direction.
         </p>
       )}

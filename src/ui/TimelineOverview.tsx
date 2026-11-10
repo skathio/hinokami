@@ -9,15 +9,12 @@
 
 import type { ScheduledStep } from '@/engine';
 import { useModalFocus } from '@/hooks/useModalFocus';
+import { formatClockTime, isOvernight } from './stepTime';
 
 export interface TimelineOverviewProps {
   steps: ReadonlyArray<ScheduledStep>;
   currentStepIndex: number;
   onClose: () => void;
-}
-
-function formatClockTime(date: Date): string {
-  return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
 export default function TimelineOverview({ steps, currentStepIndex, onClose }: TimelineOverviewProps) {
@@ -41,15 +38,15 @@ export default function TimelineOverview({ steps, currentStepIndex, onClose }: T
       aria-modal="true"
       aria-label="Timeline overview"
       tabIndex={-1}
-      className="fixed inset-0 z-10 flex flex-col bg-charcoal-950 p-6 text-charcoal-100"
+      className="fixed inset-0 z-10 flex flex-col bg-canvas p-6 text-ink"
     >
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col overflow-hidden">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Timeline</h2>
+          <h2 className="font-display text-2xl font-bold">Timeline</h2>
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-md border border-charcoal-600 px-4 py-2 font-medium text-charcoal-100 hover:bg-charcoal-800"
+            className="min-h-11 rounded-md border border-line px-4 py-2 font-medium text-ink hover:bg-surface-2"
           >
             Close
           </button>
@@ -57,26 +54,37 @@ export default function TimelineOverview({ steps, currentStepIndex, onClose }: T
         <ol className="mt-4 flex-1 space-y-2 overflow-y-auto">
           {steps.map((step, index) => {
             const isCurrent = index === currentStepIndex;
+            const isDone = index < currentStepIndex;
             return (
               <li
                 key={step.stageId}
-                className={`flex items-center justify-between rounded-md border p-3 ${
-                  isCurrent ? 'border-ember-500 bg-charcoal-900' : 'border-charcoal-800'
-                }`}
+                aria-current={isCurrent ? 'step' : undefined}
+                className={`flex items-center justify-between gap-3 rounded-xl border p-3 ${
+                  isCurrent ? 'border-ember bg-surface' : 'border-line'
+                } ${isDone ? 'opacity-70' : ''}`}
               >
-                <span className={isCurrent ? 'font-semibold text-charcoal-100' : 'text-charcoal-300'}>
-                  {step.name}
+                <span className="min-w-0">
+                  <span className={`block text-lg ${isCurrent ? 'font-bold text-ink' : 'text-ink'}`}>
+                    {isDone && <span aria-hidden="true">✓ </span>}
+                    {step.name}
+                  </span>
+                  {isOvernight(step) && (
+                    <span className="mt-1 inline-block rounded-full bg-accent-soft px-2 py-0.5 text-xs font-semibold text-accent">
+                      <span aria-hidden="true">☾ </span>Overnight
+                    </span>
+                  )}
                 </span>
-                <span className="text-sm text-charcoal-400">
-                  {formatClockTime(step.clockStartTime)} · {Math.round(step.durationMinutes)} min
+                <span className="shrink-0 text-right">
+                  <span className="block text-base font-semibold text-sun">{formatClockTime(step.clockStartTime)}</span>
+                  <span className="block text-sm text-muted">{Math.round(step.durationMinutes)} min</span>
                 </span>
               </li>
             );
           })}
         </ol>
         {targetTime && (
-          <p className="mt-4 border-t border-charcoal-800 pt-4 text-center text-sm text-charcoal-300">
-            Ready by <span className="font-semibold text-charcoal-100">{formatClockTime(targetTime)}</span>
+          <p className="mt-4 border-t border-line pt-4 text-center text-base text-muted">
+            Ready by <span className="font-semibold text-sun">{formatClockTime(targetTime)}</span>
           </p>
         )}
       </div>

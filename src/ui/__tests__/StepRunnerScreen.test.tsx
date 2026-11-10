@@ -332,7 +332,7 @@ describe('StepRunnerScreen — "how" content (iteration 2.2)', () => {
 
     render(<StepRunnerScreen />);
 
-    const list = screen.getByRole('list');
+    const list = screen.getByRole('list', { name: 'How' });
     expect(list.tagName).toBe('OL');
     expect(screen.getByText(/Dissolve the yeast into the water\./)).toBeInTheDocument();
     expect(screen.getByText(/Add the flour and salt, then mix until no dry flour remains\./)).toBeInTheDocument();
@@ -391,7 +391,7 @@ describe('StepRunnerScreen — "how" content (iteration 2.2)', () => {
 
     render(<StepRunnerScreen />);
 
-    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'How' })).not.toBeInTheDocument();
   });
 
   it('an ingredientRef that fails to resolve renders the action text without a quantity (no crash)', () => {

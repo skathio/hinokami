@@ -4,11 +4,16 @@
 // post-placement guard that replaced the retired elastic-only pre-clamp guard).
 
 import type { Recipe, Stage, TimingContext } from '@/recipes/contract';
-import type { ScheduledStep, TargetTooSoon, WorkflowInputs, WorkflowResult } from './types';
+import type { ScheduledStep, WorkflowInputs, WorkflowResult } from './types';
 
 function addMinutes(date: Date, minutes: number): Date {
   return new Date(date.getTime() + minutes * 60_000);
 }
+
+/** When the elastic stage absorbs all the slack, the first step lands exactly on `now`; `Date`
+ * drops the fractional milliseconds of each ambient-scaled duration, which can leave that start a
+ * few ms in the past. Only a start more than this tolerance in the past is infeasible. */
+const PLACEMENT_TOLERANCE_MS = 1000;
 
 function diffMinutes(later: Date, earlier: Date): number {
   return (later.getTime() - earlier.getTime()) / 60_000;
@@ -59,78 +64,112 @@ function fixedStageDurationAt(
   return recipe.stageDuration(stage.id, ctx).minutes;
 }
 
-/** A stage's minimum possible duration (D13: warmest legal ambient for fixed/fermentation
- * stages; the elastic floor for the elastic stage; the passed-in bake time for bake — bake is
- * not ambient-sensitive, so its "minimum" is just its one real value). */
-function minimumDurationOf(
-  recipe: Recipe,
-  pathwayId: string,
-  stage: Stage,
-  warmestAmbientC: number,
-  bakeTimeMinutes: number,
-): number {
-  if (stage.type === 'bake') return bakeTimeMinutes;
+/** What every duration sum needs besides the stage itself: which recipe and pathway the stage
+ * belongs to, and the already-resolved bake time (bake is not ambient-sensitive, so it is passed
+ * in rather than looked up). */
+interface DurationBasis {
+  readonly recipe: Recipe;
+  readonly pathwayId: string;
+  readonly bakeTimeMinutes: number;
+}
+
+/** A stage's minimum duration at `ambientC`: the passed-in bake time for bake, the elastic floor
+ * for the elastic stage, and `stageDuration` at that ambient for everything else. Called at the
+ * warmest legal ambient for the cheap D13 feasibility decision, and at the user's actual ambient
+ * for every suggested value — never for placement, which clamps the elastic stage into its full
+ * range instead of pinning it to the floor. */
+function stageMinimumAt(basis: DurationBasis, stage: Stage, ambientC: number): number {
+  if (stage.type === 'bake') return basis.bakeTimeMinutes;
   if (stage.elastic) return stage.elastic.minMinutes;
-  return fixedStageDurationAt(recipe, pathwayId, stage, warmestAmbientC);
+  return fixedStageDurationAt(basis.recipe, basis.pathwayId, stage, ambientC);
 }
 
-/** A stage's duration at the *actual* ambient the user reported (bake still contributes the
- * passed-in bake time; an elastic stage still contributes its floor here — this helper is used
- * only by the feasibility-style sums, never by placement, which clamps the elastic stage into
- * its full range instead of pinning it to the floor). */
-function actualAmbientMinimumOf(
-  recipe: Recipe,
-  pathwayId: string,
-  stage: Stage,
-  actualAmbientC: number,
-  bakeTimeMinutes: number,
-): number {
-  if (stage.type === 'bake') return bakeTimeMinutes;
-  if (stage.elastic) return stage.elastic.minMinutes;
-  return fixedStageDurationAt(recipe, pathwayId, stage, actualAmbientC);
+/** Sums `stageMinimumAt` over a resolved stage list. At the user's actual (possibly colder)
+ * ambient this is the basis for every *suggested* `earliestFeasibleTarget`/`alternativePathways`
+ * value: the cheap (a) warmest-ambient check is only ever the early-out *decision*, never the
+ * suggestion — see the invariant documented on `TargetTooSoon` in `types.ts`. */
+function minimumTotalAt(basis: DurationBasis, stages: Stage[], ambientC: number): number {
+  return stages.reduce((sum, stage) => sum + stageMinimumAt(basis, stage, ambientC), 0);
 }
 
-/** Sums `actualAmbientMinimumOf` over a resolved stage list — the "how much time would this
- * pathway really need at the user's actual (possibly colder) kitchen" total. This is the basis
- * for every *suggested* `earliestFeasibleTarget`/`alternativePathways` value: the cheap (a)
- * warmest-ambient check is only ever the early-out *decision*, never the suggestion — see the
- * invariant documented on `TargetTooSoon` in `types.ts`. */
-function actualAmbientTotalOf(
-  recipe: Recipe,
-  pathwayId: string,
-  stages: Stage[],
-  actualAmbientC: number,
-  bakeTimeMinutes: number,
-): number {
-  return stages.reduce(
-    (sum, stage) => sum + actualAmbientMinimumOf(recipe, pathwayId, stage, actualAmbientC, bakeTimeMinutes),
-    0,
-  );
-}
-
-function buildTargetTooSoon(
+/** The `TargetTooSoon` result for `inputs`, with every suggestion computed at the user's actual
+ * ambient, not the warmest legal one — a suggested pathway or time must be genuinely reachable
+ * in their real kitchen, not merely pass the cheap (a) check again (which would just trip the (b)
+ * universal guard a second time). */
+function targetTooSoon(
   recipe: Recipe,
   inputs: WorkflowInputs,
   bakeTimeMinutes: number,
   now: Date,
-  earliestFeasibleTargetMinutesFromNow: number,
-): TargetTooSoon {
-  // Actual ambient, not warmest-legal — a suggested pathway must be genuinely reachable at the
-  // user's real kitchen temperature, not merely pass the cheap (a) warmest-ambient check again
-  // (which would just trip the (b) universal guard a second time).
+): WorkflowResult {
+  const totalFor = (pathwayId: string) =>
+    minimumTotalAt(
+      { recipe, pathwayId, bakeTimeMinutes },
+      resolveOrderedStages(recipe, pathwayId).stages,
+      inputs.ambientC,
+    );
   const alternativePathways = recipe.pathways
     .filter((p) => p.id !== inputs.pathway)
-    .filter((p) => {
-      const { stages } = resolveOrderedStages(recipe, p.id);
-      const actualAmbientTotal = actualAmbientTotalOf(recipe, p.id, stages, inputs.ambientC, bakeTimeMinutes);
-      return diffMinutes(inputs.targetTime, now) >= actualAmbientTotal;
-    })
+    .filter((p) => diffMinutes(inputs.targetTime, now) >= totalFor(p.id))
     .map((p) => p.id);
 
   return {
-    earliestFeasibleTarget: addMinutes(now, earliestFeasibleTargetMinutesFromNow),
-    alternativePathways,
+    ok: false,
+    error: {
+      earliestFeasibleTarget: addMinutes(now, totalFor(inputs.pathway)),
+      alternativePathways,
+    },
   };
+}
+
+/** Every stage's placed duration at the user's actual ambient. Order does not matter here: the
+ * elastic stage's slack sums every *other* stage's duration, which is fully determined first
+ * since only one elastic stage is allowed per pathway. */
+function placedDurations(
+  basis: DurationBasis,
+  stages: Stage[],
+  ambientC: number,
+  timeToTargetMinutes: number,
+): Map<string, number> {
+  const placed = new Map<string, number>();
+  for (const stage of stages) {
+    if (stage.type === 'bake') placed.set(stage.id, basis.bakeTimeMinutes);
+    else if (!stage.elastic) placed.set(stage.id, fixedStageDurationAt(basis.recipe, basis.pathwayId, stage, ambientC));
+  }
+  const elasticStage = stages.find((s) => s.elastic);
+  if (elasticStage?.elastic) {
+    const othersSum = stages
+      .filter((s) => s.id !== elasticStage.id)
+      .reduce((sum, s) => sum + (placed.get(s.id) ?? 0), 0);
+    // Plain clamp, no special-cased early return (restart-pass-2 fix) — any resulting overflow
+    // (slack below elastic.minMinutes) is caught uniformly by the (b) guard, not here.
+    const { minMinutes, maxMinutes } = elasticStage.elastic;
+    placed.set(elasticStage.id, clamp(timeToTargetMinutes - othersSum, minMinutes, maxMinutes));
+  }
+  return placed;
+}
+
+/** Walks the stages backward from `targetTime`, giving each its clock start time. */
+function assignClockTimes(stages: Stage[], placed: Map<string, number>, targetTime: Date): ScheduledStep[] {
+  const steps: ScheduledStep[] = [];
+  let cursor = targetTime;
+  for (let i = stages.length - 1; i >= 0; i -= 1) {
+    const stage = stages[i];
+    const durationMinutes = placed.get(stage.id)!;
+    const clockStartTime = addMinutes(cursor, -durationMinutes);
+    steps.unshift({
+      stageId: stage.id,
+      name: stage.name,
+      why: stage.why,
+      cue: stage.cue,
+      how: stage.how,
+      durationMinutes,
+      clockStartTime,
+      isEstimate: stage.cue !== undefined,
+    });
+    cursor = clockStartTime;
+  }
+  return steps;
 }
 
 /**
@@ -157,8 +196,8 @@ export function solveScheduleBackward(
   now: Date = new Date(),
 ): WorkflowResult {
   const { stages } = resolveOrderedStages(recipe, inputs.pathway);
+  const basis: DurationBasis = { recipe, pathwayId: inputs.pathway, bakeTimeMinutes };
   const timeToTargetMinutes = diffMinutes(inputs.targetTime, now);
-  const warmestAmbientC = recipe.bounds.ambientMax;
 
   // (a) D13 minimum-feasible-total early-out. This warmest-ambient total is the correct basis
   // for the cheap *decision* ("is this even theoretically possible") — it must NOT also be used
@@ -166,76 +205,18 @@ export function solveScheduleBackward(
   // ambient, so a cooler actual ambient genuinely needs more time than this minimum, and
   // offering it back to the user would still be infeasible at their real kitchen temperature
   // (it would clear this same check again on retry, then trip the (b) guard below). The
-  // suggestion is always recomputed at the actual ambient — see `actualAmbientTotalOf`.
-  const minimumFeasibleTotal = stages.reduce(
-    (sum, stage) => sum + minimumDurationOf(recipe, inputs.pathway, stage, warmestAmbientC, bakeTimeMinutes),
-    0,
-  );
-  if (timeToTargetMinutes < minimumFeasibleTotal) {
-    const actualAmbientTotal = actualAmbientTotalOf(recipe, inputs.pathway, stages, inputs.ambientC, bakeTimeMinutes);
-    return {
-      ok: false,
-      error: buildTargetTooSoon(recipe, inputs, bakeTimeMinutes, now, actualAmbientTotal),
-    };
+  // suggestion is always recomputed at the actual ambient — see `targetTooSoon`.
+  if (timeToTargetMinutes < minimumTotalAt(basis, stages, recipe.bounds.ambientMax)) {
+    return targetTooSoon(recipe, inputs, bakeTimeMinutes, now);
   }
 
-  // Placement at the actual ambient. Compute every stage's placed duration first (order does
-  // not matter for this pass — the elastic stage's slack calc sums every *other* stage's
-  // duration, which is already fully determined at this point since only one elastic stage is
-  // allowed per pathway), then do a second, backward pass to assign real clock times.
-  const elasticStage = stages.find((s) => s.elastic);
-  const placedMinutesByStageId = new Map<string, number>();
-  for (const stage of stages) {
-    if (stage.type === 'bake') {
-      placedMinutesByStageId.set(stage.id, bakeTimeMinutes);
-    } else if (!stage.elastic) {
-      placedMinutesByStageId.set(
-        stage.id,
-        fixedStageDurationAt(recipe, inputs.pathway, stage, inputs.ambientC),
-      );
-    }
-  }
-  if (elasticStage) {
-    const othersSum = stages
-      .filter((s) => s.id !== elasticStage.id)
-      .reduce((sum, s) => sum + (placedMinutesByStageId.get(s.id) ?? 0), 0);
-    const availableSlackMinutes = timeToTargetMinutes - othersSum;
-    // Plain clamp, no special-cased early return (restart-pass-2 fix) — any resulting overflow
-    // (availableSlackMinutes below elastic.minMinutes) is caught uniformly by the (b) guard
-    // below, not here.
-    placedMinutesByStageId.set(
-      elasticStage.id,
-      clamp(availableSlackMinutes, elasticStage.elastic!.minMinutes, elasticStage.elastic!.maxMinutes),
-    );
-  }
-
-  const scheduledSteps: ScheduledStep[] = [];
-  let cursor = inputs.targetTime;
-  for (let i = stages.length - 1; i >= 0; i -= 1) {
-    const stage = stages[i];
-    const durationMinutes = placedMinutesByStageId.get(stage.id)!;
-    const clockStartTime = addMinutes(cursor, -durationMinutes);
-    scheduledSteps.unshift({
-      stageId: stage.id,
-      name: stage.name,
-      why: stage.why,
-      cue: stage.cue,
-      how: stage.how,
-      durationMinutes,
-      clockStartTime,
-      isEstimate: stage.cue !== undefined,
-    });
-    cursor = clockStartTime;
-  }
+  const placed = placedDurations(basis, stages, inputs.ambientC, timeToTargetMinutes);
+  const scheduledSteps = assignClockTimes(stages, placed, inputs.targetTime);
 
   // (b) Universal post-placement guard — is the earliest placed stage already in the past?
   const earliestStart = scheduledSteps[0]?.clockStartTime ?? inputs.targetTime;
-  if (earliestStart.getTime() < now.getTime()) {
-    const actualAmbientTotal = actualAmbientTotalOf(recipe, inputs.pathway, stages, inputs.ambientC, bakeTimeMinutes);
-    return {
-      ok: false,
-      error: buildTargetTooSoon(recipe, inputs, bakeTimeMinutes, now, actualAmbientTotal),
-    };
+  if (earliestStart.getTime() < now.getTime() - PLACEMENT_TOLERANCE_MS) {
+    return targetTooSoon(recipe, inputs, bakeTimeMinutes, now);
   }
 
   return { ok: true, steps: scheduledSteps };
