@@ -29,7 +29,7 @@ export default function TargetTooSoonBanner({
   return (
     <div
       role="alert"
-      className="rounded-md border border-amber-700 bg-amber-950/40 p-4 text-sm text-amber-100"
+      className="rounded-md border border-caution bg-surface p-4 text-sm text-ink"
     >
       <p className="font-medium">Your target time is too soon for this pathway</p>
       <p className="mt-1">The earliest feasible ready time for this pathway is {formattedEarliest}.</p>
@@ -37,7 +37,7 @@ export default function TargetTooSoonBanner({
         <button
           type="button"
           onClick={() => onAcceptEarliest(earliestFeasibleTarget)}
-          className="min-h-11 rounded-md border border-amber-600 px-4 py-2 font-medium text-amber-100 hover:bg-amber-900/40"
+          className="min-h-11 rounded-md border border-caution px-4 py-2 font-medium text-ink hover:bg-surface-2"
         >
           Use {formattedEarliest}
         </button>
@@ -48,7 +48,7 @@ export default function TargetTooSoonBanner({
               key={pathwayId}
               type="button"
               onClick={() => onSwitchPathway(pathwayId)}
-              className="min-h-11 rounded-md border border-amber-600 px-4 py-2 font-medium text-amber-100 hover:bg-amber-900/40"
+              className="min-h-11 rounded-md border border-caution px-4 py-2 font-medium text-ink hover:bg-surface-2"
             >
               Switch to {pathway?.name ?? pathwayId}
             </button>

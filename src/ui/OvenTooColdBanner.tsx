@@ -20,14 +20,14 @@ export default function OvenTooColdBanner({ reason, onChangeTemperature }: OvenT
   return (
     <div
       role="alert"
-      className="rounded-md border border-amber-700 bg-amber-950/40 p-4 text-sm text-amber-100"
+      className="rounded-md border border-caution bg-surface p-4 text-sm text-ink"
     >
       <p className="font-medium">This recipe needs a hotter oven</p>
       <p className="mt-1">{reason}</p>
       <button
         type="button"
         onClick={onChangeTemperature}
-        className="mt-3 min-h-11 rounded-md border border-amber-600 px-4 py-2 font-medium text-amber-100 hover:bg-amber-900/40"
+        className="mt-3 min-h-11 rounded-md border border-caution px-4 py-2 font-medium text-ink hover:bg-surface-2"
       >
         Change temperature
       </button>

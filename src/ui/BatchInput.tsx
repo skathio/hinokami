@@ -48,7 +48,7 @@ export default function BatchInput({
   return (
     <div className="flex flex-wrap gap-4">
       <div>
-        <label htmlFor={countId} className="block text-sm font-medium text-charcoal-200">
+        <label htmlFor={countId} className="block text-sm font-medium text-ink">
           Number of dough balls
         </label>
         <input
@@ -64,23 +64,19 @@ export default function BatchInput({
           onBlur={onBlurBallCount}
           aria-invalid={ballCountError ? true : undefined}
           aria-describedby={ballCountError ? countErrorId : undefined}
-          // `charcoal-600` border — see `ConfigScreen.tsx`'s target-time input comment (not the
-          // naive 1:1 `charcoal-700`, which measures below the 3:1 UI-boundary bar here).
-          className="mt-1 min-h-11 w-24 rounded-md border border-charcoal-600 bg-charcoal-900 px-3 py-2 text-charcoal-100 focus:border-charcoal-400 focus:outline-none"
+          className="mt-1 min-h-11 w-24 rounded-md border border-line bg-surface px-3 py-2 text-ink focus:border-ember"
         />
-        {/* `charcoal-400`, not a naive 1:1 `charcoal-500` — see `TemperatureInput.tsx`'s hint-text
-            comment (4.38:1 fails the 4.5:1 body-text bar). */}
-        <p className="mt-1 text-xs text-charcoal-400">
+        <p className="mt-1 text-xs text-muted">
           {ballCountMin}–{ballCountMax} balls
         </p>
         {ballCountError && (
-          <p id={countErrorId} role="alert" className="mt-1 text-sm text-red-400">
+          <p id={countErrorId} role="alert" className="mt-1 text-sm text-danger">
             {ballCountError}
           </p>
         )}
       </div>
       <div>
-        <label htmlFor={weightId} className="block text-sm font-medium text-charcoal-200">
+        <label htmlFor={weightId} className="block text-sm font-medium text-ink">
           Weight per ball (g)
         </label>
         <input
@@ -95,13 +91,13 @@ export default function BatchInput({
           onBlur={onBlurBallWeight}
           aria-invalid={ballWeightError ? true : undefined}
           aria-describedby={ballWeightError ? weightErrorId : undefined}
-          className="mt-1 min-h-11 w-28 rounded-md border border-charcoal-600 bg-charcoal-900 px-3 py-2 text-charcoal-100 focus:border-charcoal-400 focus:outline-none"
+          className="mt-1 min-h-11 w-28 rounded-md border border-line bg-surface px-3 py-2 text-ink focus:border-ember"
         />
-        <p className="mt-1 text-xs text-charcoal-400">
+        <p className="mt-1 text-xs text-muted">
           {ballWeightMinG}–{ballWeightMaxG} g
         </p>
         {ballWeightError && (
-          <p id={weightErrorId} role="alert" className="mt-1 text-sm text-red-400">
+          <p id={weightErrorId} role="alert" className="mt-1 text-sm text-danger">
             {ballWeightError}
           </p>
         )}

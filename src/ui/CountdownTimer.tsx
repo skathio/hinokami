@@ -17,11 +17,18 @@
 
 import { useEffect, useState } from 'react';
 import { useSessionStore } from '@/store/session';
+import { formatClockTime } from './stepTime';
 
 const TICK_INTERVAL_MS = 30_000;
+/** Below this many minutes the countdown reads "≈55m"; at or above it, "≈21 h 19 m", since a
+ * step scheduled for tomorrow would otherwise read as an unreadable "≈1279m". */
+const HOURS_FORMAT_FROM_MINUTES = 120;
 
-function formatClockTime(date: Date): string {
-  return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+function formatRemaining(minutes: number): string {
+  if (minutes < HOURS_FORMAT_FROM_MINUTES) return `≈${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest === 0 ? `≈${hours} h` : `≈${hours} h ${rest} m`;
 }
 
 export default function CountdownTimer() {
@@ -48,14 +55,16 @@ export default function CountdownTimer() {
   // Consistent with `StepRunnerScreen`'s existing `ESTIMATE_LABEL` framing ("trust dough feel
   // over the clock").
   if (step.isEstimate) {
-    return <p className="mt-1 text-sm text-charcoal-400">ends ~{formattedEndTime} (estimate)</p>;
+    return (
+      <p className="text-center text-base font-semibold text-sun">ends ~{formattedEndTime} (estimate)</p>
+    );
   }
 
   const remainingMinutes = Math.max(0, Math.round((endTime.getTime() - Date.now()) / 60_000));
 
   return (
-    <p className="mt-1 text-sm text-charcoal-400">
-      ends ~{formattedEndTime} · ≈{remainingMinutes}m left
+    <p className="text-center text-base font-semibold text-sun">
+      ends ~{formattedEndTime} · {formatRemaining(remainingMinutes)} left
     </p>
   );
 }
