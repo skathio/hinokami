@@ -10,6 +10,8 @@ function addMinutes(date: Date, minutes: number): Date {
   return new Date(date.getTime() + minutes * 60_000);
 }
 
+const PLACEMENT_TOLERANCE_MS = 1000;
+
 function diffMinutes(later: Date, earlier: Date): number {
   return (later.getTime() - earlier.getTime()) / 60_000;
 }
@@ -228,8 +230,11 @@ export function solveScheduleBackward(
   }
 
   // (b) Universal post-placement guard — is the earliest placed stage already in the past?
+  // When the elastic stage absorbs all the slack, the first step lands exactly on `now`; `Date`
+  // drops the fractional milliseconds of each ambient-scaled duration, which can leave that
+  // start a few ms in the past. Only a start more than this tolerance in the past is infeasible.
   const earliestStart = scheduledSteps[0]?.clockStartTime ?? inputs.targetTime;
-  if (earliestStart.getTime() < now.getTime()) {
+  if (earliestStart.getTime() < now.getTime() - PLACEMENT_TOLERANCE_MS) {
     const actualAmbientTotal = actualAmbientTotalOf(recipe, inputs.pathway, stages, inputs.ambientC, bakeTimeMinutes);
     return {
       ok: false,

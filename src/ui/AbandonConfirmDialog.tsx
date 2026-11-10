@@ -29,23 +29,23 @@ export default function AbandonConfirmDialog({ onCancel }: AbandonConfirmDialogP
       tabIndex={-1}
       className="fixed inset-0 z-10 flex items-center justify-center bg-black/70 p-6"
     >
-      <div className="w-full max-w-sm rounded-lg border border-zinc-700 bg-zinc-900 p-5 text-zinc-100">
+      <div className="w-full max-w-sm rounded-lg border border-line bg-surface p-5 text-ink">
         <h2 id="abandon-dialog-title" className="text-lg font-semibold">
           Abandon this bake and start fresh?
         </h2>
-        <p className="mt-1 text-sm text-zinc-400">This can&apos;t be undone.</p>
+        <p className="mt-1 text-sm text-muted">This can&apos;t be undone.</p>
         <div className="mt-4 flex justify-end gap-3">
           <button
             type="button"
             onClick={onCancel}
-            className="min-h-11 rounded-md border border-zinc-600 px-4 py-2 font-medium text-zinc-100 hover:bg-zinc-800"
+            className="min-h-11 rounded-md border border-line px-4 py-2 font-medium text-ink hover:bg-surface-2"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={resetSession}
-            className="min-h-11 rounded-md bg-red-700 px-4 py-2 font-medium text-white hover:bg-red-600"
+            className="min-h-11 rounded-md bg-danger px-4 py-2 font-medium text-canvas hover:brightness-110"
           >
             Abandon bake
           </button>

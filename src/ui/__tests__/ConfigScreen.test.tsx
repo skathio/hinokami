@@ -114,6 +114,25 @@ describe('ConfigScreen — target-too-soon exception (FR-11)', () => {
   });
 });
 
+describe('ConfigScreen — accepting the suggested earliest target', () => {
+  it('starts the bake when the user accepts the earliest time the banner offers', () => {
+    render(<ConfigScreen recipe={pizzaRecipe} />);
+
+    // 22 °C gives fractional ambient-scaled durations, the case that used to bounce back.
+    fillTargetTime(new Date(Date.now() + 10 * 60_000));
+    fillOven(250);
+    fillAmbient(22);
+    fillBallCount(2);
+    selectPathway('Cold ferment');
+    submit();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Use / }));
+
+    expect(screen.queryByText(/too soon/i)).not.toBeInTheDocument();
+    expect(useSessionStore.getState().session).not.toBeNull();
+  });
+});
+
 describe('ConfigScreen — valid inputs (store mocked)', () => {
   it('calls store.startSession with the entered inputs', () => {
     const startSessionSpy = vi.fn().mockReturnValue({

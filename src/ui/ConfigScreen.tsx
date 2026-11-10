@@ -17,10 +17,13 @@
 import { useState, type FormEvent } from 'react';
 import type { OvenTooCold, PathwayRef, Recipe, RecipeBounds } from '@/recipes/contract';
 import type { TargetTooSoon, WorkflowInputs } from '@/engine';
+import { generateWorkflow, type GenerateWorkflowResult } from '@/engine';
 import { useSessionStore } from '@/store/session';
 import TemperatureInput from './TemperatureInput';
 import PathwayToggle from './PathwayToggle';
 import BatchInput from './BatchInput';
+import AppHeader from './AppHeader';
+import ScheduleSummary, { type SummarySection } from './ScheduleSummary';
 import OvenTooColdBanner from './OvenTooColdBanner';
 import TargetTooSoonBanner from './TargetTooSoonBanner';
 
@@ -127,6 +130,28 @@ function toDateTimeLocalValue(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+const SUGGESTION_STEP_MS = 5 * 60_000;
+
+/** The engine's earliest feasible target is exact to the millisecond, but the time input keeps
+ * only whole minutes and the user takes a while to click. Adding a minute and rounding up to the
+ * next 5-minute mark keeps it feasible when accepted, and gives a tidier time to read. */
+function roundUpSuggestion(date: Date): Date {
+  return new Date(Math.ceil((date.getTime() + 60_000) / SUGGESTION_STEP_MS) * SUGGESTION_STEP_MS);
+}
+
+/** Computes the live schedule for the summary; only called once every field validates. */
+function previewWorkflow(recipe: Recipe, values: FormValues): GenerateWorkflowResult {
+  return generateWorkflow(recipe, {
+    targetTime: new Date(values.targetTime),
+    ovenMaxC: values.ovenMaxC as number,
+    hasStoneOrSteel: values.hasStoneOrSteel,
+    ambientC: values.ambientC as number,
+    ballCount: values.ballCount as number,
+    ballWeightG: values.ballWeightG as number,
+    pathway: values.pathway as PathwayRef,
+  });
+}
+
 export default function ConfigScreen({ recipe }: ConfigScreenProps) {
   const startSession = useSessionStore((state) => state.startSession);
   const setView = useSessionStore((state) => state.setView);
@@ -188,127 +213,160 @@ export default function ConfigScreen({ recipe }: ConfigScreenProps) {
     attemptGenerate(next);
   }
 
+  const parsedTarget = values.targetTime ? new Date(values.targetTime) : null;
+  const formValid = Object.keys(errors).length === 0;
+  const preview = formValid ? previewWorkflow(recipe, values) : null;
+
+  /** Jumps to the first control of a form group (used by the summary chips). */
+  function focusSection(section: SummarySection): void {
+    const group = document.getElementById(`section-${section}`);
+    group?.scrollIntoView({ block: 'center' });
+    group?.querySelector<HTMLElement>('input, button')?.focus();
+  }
+
   return (
-    <main className="min-h-screen bg-zinc-950 p-6 text-zinc-100">
-      <div className="mx-auto max-w-lg space-y-6">
-        <div>
-          <button
-            type="button"
-            onClick={() => setView('recipe-select')}
-            className="min-h-11 text-sm text-zinc-400 hover:text-zinc-100"
-          >
-            ‹ Change recipe
-          </button>
-          <h1 className="mt-2 text-2xl font-semibold">{recipe.name}</h1>
-          <p className="mt-1 text-sm text-zinc-400">{recipe.description}</p>
-        </div>
-
-        {ovenTooCold && (
-          <OvenTooColdBanner
-            reason={ovenTooCold.reason}
-            onChangeTemperature={() => {
-              setOvenTooCold(null);
-              markTouched('ovenMaxC');
-            }}
-          />
-        )}
-
-        {targetTooSoon && (
-          <TargetTooSoonBanner
-            earliestFeasibleTarget={targetTooSoon.earliestFeasibleTarget}
-            alternativePathways={targetTooSoon.alternativePathways}
-            pathways={recipe.pathways}
-            onAcceptEarliest={handleAcceptEarliest}
-            onSwitchPathway={handleSwitchPathway}
-          />
-        )}
-
-        <form onSubmit={handleSubmit} noValidate className="space-y-5">
+    <main className="min-h-dvh bg-canvas text-ink">
+      <AppHeader />
+      <form onSubmit={handleSubmit} noValidate className="mx-auto max-w-lg">
+        <div className="space-y-6 px-4 pb-6 pt-4">
           <div>
-            <label htmlFor="target-time" className="block text-sm font-medium text-zinc-200">
-              Target ready time
-            </label>
-            <input
-              id="target-time"
-              type="datetime-local"
-              value={values.targetTime}
-              onChange={(event) => setValues((prev) => ({ ...prev, targetTime: event.target.value }))}
-              onBlur={() => markTouched('targetTime')}
-              aria-invalid={fieldError('targetTime') ? true : undefined}
-              className="mt-1 min-h-11 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-100 focus:border-zinc-400 focus:outline-none"
-            />
-            {fieldError('targetTime') && (
-              <p role="alert" className="mt-1 text-sm text-red-400">
-                {fieldError('targetTime')}
-              </p>
-            )}
+            <button
+              type="button"
+              onClick={() => setView('recipe-select')}
+              className="min-h-11 text-sm font-medium text-muted hover:text-ink"
+            >
+              ‹ Change recipe
+            </button>
+            <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight">{recipe.name}</h1>
+            <p className="mt-1 text-base text-muted">{recipe.description}</p>
           </div>
 
-          <TemperatureInput
-            label="Oven maximum temperature"
-            valueC={values.ovenMaxC}
-            onChangeC={(value) => setValues((prev) => ({ ...prev, ovenMaxC: value }))}
-            onBlur={() => markTouched('ovenMaxC')}
-            minC={OVEN_INPUT_MIN_C}
-            maxC={OVEN_INPUT_MAX_C}
-            error={fieldError('ovenMaxC')}
-          />
-
-          <label className="flex min-h-11 items-center gap-2 text-sm text-zinc-200">
-            <input
-              type="checkbox"
-              checked={values.hasStoneOrSteel}
-              onChange={(event) =>
-                setValues((prev) => ({ ...prev, hasStoneOrSteel: event.target.checked }))
-              }
-              className="h-5 w-5"
+          {ovenTooCold && (
+            <OvenTooColdBanner
+              reason={ovenTooCold.reason}
+              onChangeTemperature={() => {
+                setOvenTooCold(null);
+                markTouched('ovenMaxC');
+              }}
             />
-            I have a pizza stone or steel
-          </label>
+          )}
 
-          <TemperatureInput
-            label="Ambient room temperature"
-            valueC={values.ambientC}
-            onChangeC={(value) => setValues((prev) => ({ ...prev, ambientC: value }))}
-            onBlur={() => markTouched('ambientC')}
-            minC={recipe.bounds.ambientMin}
-            maxC={recipe.bounds.ambientMax}
-            error={fieldError('ambientC')}
-          />
+          {targetTooSoon && (
+            <TargetTooSoonBanner
+              earliestFeasibleTarget={roundUpSuggestion(targetTooSoon.earliestFeasibleTarget)}
+              alternativePathways={targetTooSoon.alternativePathways}
+              pathways={recipe.pathways}
+              onAcceptEarliest={handleAcceptEarliest}
+              onSwitchPathway={handleSwitchPathway}
+            />
+          )}
 
-          <BatchInput
+          <fieldset id="section-when" className="flex flex-col gap-4 rounded-2xl border border-line bg-surface p-4">
+            <legend className="px-2 font-display text-lg font-bold text-sun">When</legend>
+            <div>
+              <label htmlFor="target-time" className="block text-sm font-semibold text-ink">
+                Target ready time
+              </label>
+              <input
+                id="target-time"
+                type="datetime-local"
+                value={values.targetTime}
+                onChange={(event) => setValues((prev) => ({ ...prev, targetTime: event.target.value }))}
+                onBlur={() => markTouched('targetTime')}
+                aria-invalid={fieldError('targetTime') ? true : undefined}
+                className="mt-1 min-h-11 w-full rounded-md border border-line bg-canvas px-3 py-2 text-lg text-ink focus:border-ember focus:ring-2 focus:ring-ember"
+              />
+              {fieldError('targetTime') && (
+                <p role="alert" className="mt-1 text-sm text-danger">
+                  {fieldError('targetTime')}
+                </p>
+              )}
+            </div>
+          </fieldset>
+
+          <fieldset id="section-oven" className="flex flex-col gap-4 rounded-2xl border border-line bg-surface p-4">
+            <legend className="px-2 font-display text-lg font-bold text-sun">Oven</legend>
+            <TemperatureInput
+              label="Oven maximum temperature"
+              valueC={values.ovenMaxC}
+              onChangeC={(value) => setValues((prev) => ({ ...prev, ovenMaxC: value }))}
+              onBlur={() => markTouched('ovenMaxC')}
+              minC={OVEN_INPUT_MIN_C}
+              maxC={OVEN_INPUT_MAX_C}
+              error={fieldError('ovenMaxC')}
+            />
+
+            <label className="flex min-h-11 items-center gap-3 text-base text-ink">
+              <input
+                type="checkbox"
+                checked={values.hasStoneOrSteel}
+                onChange={(event) =>
+                  setValues((prev) => ({ ...prev, hasStoneOrSteel: event.target.checked }))
+                }
+                className="h-6 w-6 accent-ember"
+              />
+              I have a pizza stone or steel
+            </label>
+          </fieldset>
+
+          <fieldset id="section-dough" className="flex flex-col gap-4 rounded-2xl border border-line bg-surface p-4">
+            <legend className="px-2 font-display text-lg font-bold text-sun">Dough</legend>
+            <TemperatureInput
+              label="Ambient room temperature"
+              valueC={values.ambientC}
+              onChangeC={(value) => setValues((prev) => ({ ...prev, ambientC: value }))}
+              onBlur={() => markTouched('ambientC')}
+              minC={recipe.bounds.ambientMin}
+              maxC={recipe.bounds.ambientMax}
+              error={fieldError('ambientC')}
+            />
+
+            <BatchInput
+              ballCount={values.ballCount}
+              onChangeBallCount={(value) => setValues((prev) => ({ ...prev, ballCount: value }))}
+              onBlurBallCount={() => markTouched('ballCount')}
+              ballCountMin={recipe.bounds.ballCountMin}
+              ballCountMax={recipe.bounds.ballCountMax}
+              ballCountError={fieldError('ballCount')}
+              ballWeightG={values.ballWeightG}
+              onChangeBallWeight={(value) => setValues((prev) => ({ ...prev, ballWeightG: value }))}
+              onBlurBallWeight={() => markTouched('ballWeightG')}
+              ballWeightMinG={recipe.bounds.ballWeightGMin}
+              ballWeightMaxG={recipe.bounds.ballWeightGMax}
+              ballWeightError={fieldError('ballWeightG')}
+            />
+
+            <PathwayToggle
+              pathways={recipe.pathways}
+              value={values.pathway}
+              onChange={(id) => {
+                setValues((prev) => ({ ...prev, pathway: id }));
+                markTouched('pathway');
+              }}
+              error={fieldError('pathway')}
+            />
+          </fieldset>
+
+          <ScheduleSummary
+            steps={preview?.ok ? preview.steps : null}
+            targetTime={parsedTarget}
+            ovenMaxC={values.ovenMaxC}
             ballCount={values.ballCount}
-            onChangeBallCount={(value) => setValues((prev) => ({ ...prev, ballCount: value }))}
-            onBlurBallCount={() => markTouched('ballCount')}
-            ballCountMin={recipe.bounds.ballCountMin}
-            ballCountMax={recipe.bounds.ballCountMax}
-            ballCountError={fieldError('ballCount')}
             ballWeightG={values.ballWeightG}
-            onChangeBallWeight={(value) => setValues((prev) => ({ ...prev, ballWeightG: value }))}
-            onBlurBallWeight={() => markTouched('ballWeightG')}
-            ballWeightMinG={recipe.bounds.ballWeightGMin}
-            ballWeightMaxG={recipe.bounds.ballWeightGMax}
-            ballWeightError={fieldError('ballWeightG')}
+            pathwayName={recipe.pathways.find((p) => p.id === values.pathway)?.name ?? ''}
+            onEdit={focusSection}
           />
+        </div>
 
-          <PathwayToggle
-            pathways={recipe.pathways}
-            value={values.pathway}
-            onChange={(id) => {
-              setValues((prev) => ({ ...prev, pathway: id }));
-              markTouched('pathway');
-            }}
-            error={fieldError('pathway')}
-          />
-
+        <div className="sticky bottom-0 border-t border-line bg-canvas px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
           <button
             type="submit"
-            className="min-h-11 w-full rounded-md bg-zinc-100 px-4 py-3 text-base font-semibold text-zinc-900 hover:bg-white"
+            className="min-h-14 w-full rounded-xl bg-ember px-4 py-4 text-lg font-bold text-on-ember hover:brightness-110"
           >
             Generate
           </button>
-        </form>
-      </div>
+        </div>
+      </form>
     </main>
   );
 }

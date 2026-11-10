@@ -1,14 +1,29 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#09090b" />
+    <meta name="theme-color" content="#14100e" />
+    <script>
+      // Pre-paint theme: runs before the app bundle so the first frame already has the right
+      // colours. Reads the stored override (own key, untrusted: only 'light'/'dark' accepted),
+      // else follows prefers-color-scheme. Keep in step with src/prefs/prefs.ts.
+      (function () {
+        var t = null;
+        try {
+          var p = JSON.parse(localStorage.getItem('hinokami-prefs-v1') || 'null');
+          if (p && (p.theme === 'light' || p.theme === 'dark')) t = p.theme;
+        } catch (e) {}
+        if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', t);
+      })();
+    </script>
     <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png" />
-    <link rel="icon" href="%BASE_URL%favicon.ico" />
+    <link rel="icon" href="%BASE_URL%favicon.ico" sizes="32x32" />
+    <link rel="icon" href="%BASE_URL%mark.svg" type="image/svg+xml" />
     <title>Hinokami</title>
   </head>
-  <body class="bg-zinc-950 text-zinc-100">
+  <body class="bg-canvas text-ink">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

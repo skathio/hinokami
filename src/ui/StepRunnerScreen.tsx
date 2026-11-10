@@ -6,13 +6,16 @@
 // `isStepActive` and renders the completion screen once the session's `status` flips to
 // `'completed'` (`engine/progression.ts`'s `advance`).
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSessionStore } from '@/store/session';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import WakeLockHint from './WakeLockHint';
 import NudgePanel from './NudgePanel';
 import AbandonConfirmDialog from './AbandonConfirmDialog';
 import TimelineOverview from './TimelineOverview';
+import Wordmark from './Wordmark';
+import ThemeToggle from './ThemeToggle';
+import { formatClockTime, formatCountdown, isOvernight } from './stepTime';
 
 const ESTIMATE_LABEL = 'Estimated — trust dough feel over the clock.';
 
@@ -24,9 +27,20 @@ const ESTIMATE_LABEL = 'Estimated — trust dough feel over the clock.';
  * needs a different id. */
 const BAKE_STAGE_ID = 'bake';
 
-function formatClockTime(date: Date): string {
-  return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+const COUNTDOWN_TICK_MS = 30_000;
+
+/** Re-renders on a slow tick so the "in X h Y m" countdown stays current without a per-second timer. */
+function useNow(): Date {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), COUNTDOWN_TICK_MS);
+    return () => clearInterval(id);
+  }, []);
+  return now;
 }
+
+const secondaryButton =
+  'min-h-11 rounded-md border border-line px-2 py-2 text-sm font-medium text-ink hover:bg-surface-2';
 
 export default function StepRunnerScreen() {
   const session = useSessionStore((state) => state.session);
@@ -37,6 +51,7 @@ export default function StepRunnerScreen() {
   const [nudgeOpen, setNudgeOpen] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [abandonOpen, setAbandonOpen] = useState(false);
+  const now = useNow();
 
   // Called unconditionally, before any early return, per the rules of hooks — `isActive` is
   // `false` both when there's no session yet and once the bake completes, either of which
@@ -50,12 +65,13 @@ export default function StepRunnerScreen() {
 
   if (session.status === 'completed') {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-zinc-950 p-6 text-center text-zinc-100">
-        <h1 className="text-3xl font-bold">You&apos;re done — enjoy your pizza</h1>
+      <main className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-canvas p-6 text-center text-ink">
+        <Wordmark className="text-3xl" />
+        <h1 className="font-display text-4xl font-bold">You&apos;re done — enjoy your pizza</h1>
         <button
           type="button"
           onClick={resetSession}
-          className="min-h-11 rounded-md bg-zinc-100 px-6 py-3 text-2xl font-semibold text-zinc-900 hover:bg-white"
+          className="min-h-14 rounded-xl bg-ember px-8 py-3 text-2xl font-bold text-on-ember hover:brightness-110"
         >
           Start a new bake
         </button>
@@ -64,24 +80,61 @@ export default function StepRunnerScreen() {
   }
 
   const currentStep = session.workflow[session.stepIndex];
+  const nextStep = session.workflow[session.stepIndex + 1];
   const caveat = currentStep.stageId === BAKE_STAGE_ID ? session.bakeAdaptation?.caveat : undefined;
 
   return (
-    <main className="flex min-h-screen flex-col bg-zinc-950 text-zinc-100">
+    <main className="flex min-h-dvh flex-col bg-canvas text-ink">
       <WakeLockHint visible={wakeLockUnavailable} />
 
-      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-between gap-6 p-6">
+      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-5 pt-3">
+        <div className="flex items-center justify-between">
+          <Wordmark className="text-xl" />
+          <ThemeToggle />
+        </div>
+
+        <ol aria-label="Progress" className="flex gap-1.5">
+          {session.workflow.map((step, index) => {
+            const state = index < session.stepIndex ? 'done' : index === session.stepIndex ? 'current' : 'upcoming';
+            return (
+              <li
+                key={step.stageId}
+                aria-current={state === 'current' ? 'step' : undefined}
+                className="flex-1"
+              >
+                <span
+                  aria-hidden="true"
+                  className={`block h-2 rounded-full ${
+                    state === 'done' ? 'bg-ember' : state === 'current' ? 'bg-sun' : 'bg-line'
+                  }`}
+                />
+                <span className="sr-only">
+                  {step.name}, {state}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+
         <div>
-          <p className="text-sm text-zinc-400">
-            Step {session.stepIndex + 1} of {session.workflow.length} · {formatClockTime(currentStep.clockStartTime)}
+          <p className="text-base font-medium text-muted">
+            Step {session.stepIndex + 1} of {session.workflow.length} ·{' '}
+            <span className="font-semibold text-sun">{formatClockTime(currentStep.clockStartTime)}</span>
           </p>
-          <h1 className="mt-2 text-3xl font-bold">{currentStep.name}</h1>
-          <p className="mt-3 text-lg text-zinc-300">{currentStep.why}</p>
+          {isOvernight(currentStep) && (
+            <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-accent-soft px-3 py-1 text-sm font-semibold text-accent">
+              <span aria-hidden="true">☾</span> Overnight step
+            </p>
+          )}
+          <h1 className="mt-3 font-display text-5xl font-extrabold leading-[1.05] tracking-tight">
+            {currentStep.name}
+          </h1>
+          <p className="mt-4 text-2xl leading-snug text-ink">{currentStep.why}</p>
 
           {currentStep.isEstimate && (
-            <div className="mt-4 rounded-md border border-zinc-700 bg-zinc-900 p-4">
-              <p className="text-sm font-medium text-zinc-400">{ESTIMATE_LABEL}</p>
-              {currentStep.cue && <p className="mt-1 text-zinc-100">{currentStep.cue}</p>}
+            <div className="mt-5 rounded-xl border border-line bg-surface p-4">
+              <p className="text-sm font-medium text-muted">{ESTIMATE_LABEL}</p>
+              {currentStep.cue && <p className="mt-1 text-xl text-ink">{currentStep.cue}</p>}
             </div>
           )}
 
@@ -89,56 +142,52 @@ export default function StepRunnerScreen() {
             <div
               role="note"
               aria-label="Bake caveat"
-              className="mt-4 rounded-md border border-amber-700 bg-amber-950/40 p-4 text-amber-100"
+              className="mt-5 rounded-xl border border-caution bg-surface p-4 text-ink"
             >
               <p>{caveat}</p>
             </div>
           )}
 
           {nudgeOpen && (
-            <div className="mt-4">
+            <div className="mt-5">
               <NudgePanel onClose={() => setNudgeOpen(false)} />
             </div>
           )}
         </div>
+      </div>
 
-        <div className="space-y-3">
+      <div className="sticky bottom-0 border-t border-line bg-canvas pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
+        <div className="mx-auto w-full max-w-lg space-y-3 px-5">
+          {nextStep && (
+            <p className="text-center text-base text-muted">
+              Next at <span className="font-semibold text-sun">{formatClockTime(nextStep.clockStartTime)}</span>
+              {' · '}
+              <span className="font-semibold text-sun">{formatCountdown(nextStep.clockStartTime, now)}</span>
+            </p>
+          )}
           <button
             type="button"
             onClick={advanceStep}
-            className="min-h-11 w-full rounded-md bg-zinc-100 px-4 py-4 text-2xl font-semibold text-zinc-900 hover:bg-white"
+            className="min-h-16 w-full rounded-xl bg-ember px-4 py-4 text-2xl font-bold text-on-ember hover:brightness-110"
           >
             Done — next step
           </button>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={backStep}
-              className="min-h-11 flex-1 rounded-md border border-zinc-600 px-4 py-2 font-medium text-zinc-100 hover:bg-zinc-800"
-            >
+          <div className="grid grid-cols-4 gap-2">
+            <button type="button" onClick={backStep} className={secondaryButton}>
               Go back
             </button>
             <button
               type="button"
+              aria-expanded={nudgeOpen}
               onClick={() => setNudgeOpen((open) => !open)}
-              className="min-h-11 flex-1 rounded-md border border-zinc-600 px-4 py-2 font-medium text-zinc-100 hover:bg-zinc-800"
+              className={secondaryButton}
             >
               Nudge pace
             </button>
-          </div>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => setTimelineOpen(true)}
-              className="min-h-11 flex-1 rounded-md border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800"
-            >
+            <button type="button" onClick={() => setTimelineOpen(true)} className={secondaryButton}>
               Timeline
             </button>
-            <button
-              type="button"
-              onClick={() => setAbandonOpen(true)}
-              className="min-h-11 flex-1 rounded-md border border-zinc-700 px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800"
-            >
+            <button type="button" onClick={() => setAbandonOpen(true)} className={secondaryButton}>
               Abandon bake
             </button>
           </div>

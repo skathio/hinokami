@@ -48,7 +48,7 @@ export default function BatchInput({
   return (
     <div className="flex flex-wrap gap-4">
       <div>
-        <label htmlFor={countId} className="block text-sm font-medium text-zinc-200">
+        <label htmlFor={countId} className="block text-sm font-medium text-ink">
           Number of dough balls
         </label>
         <input
@@ -64,19 +64,19 @@ export default function BatchInput({
           onBlur={onBlurBallCount}
           aria-invalid={ballCountError ? true : undefined}
           aria-describedby={ballCountError ? countErrorId : undefined}
-          className="mt-1 min-h-11 w-24 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-100 focus:border-zinc-400 focus:outline-none"
+          className="mt-1 min-h-11 w-24 rounded-md border border-line bg-surface px-3 py-2 text-ink focus:border-ember"
         />
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-1 text-xs text-muted">
           {ballCountMin}–{ballCountMax} balls
         </p>
         {ballCountError && (
-          <p id={countErrorId} role="alert" className="mt-1 text-sm text-red-400">
+          <p id={countErrorId} role="alert" className="mt-1 text-sm text-danger">
             {ballCountError}
           </p>
         )}
       </div>
       <div>
-        <label htmlFor={weightId} className="block text-sm font-medium text-zinc-200">
+        <label htmlFor={weightId} className="block text-sm font-medium text-ink">
           Weight per ball (g)
         </label>
         <input
@@ -91,13 +91,13 @@ export default function BatchInput({
           onBlur={onBlurBallWeight}
           aria-invalid={ballWeightError ? true : undefined}
           aria-describedby={ballWeightError ? weightErrorId : undefined}
-          className="mt-1 min-h-11 w-28 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-100 focus:border-zinc-400 focus:outline-none"
+          className="mt-1 min-h-11 w-28 rounded-md border border-line bg-surface px-3 py-2 text-ink focus:border-ember"
         />
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-1 text-xs text-muted">
           {ballWeightMinG}–{ballWeightMaxG} g
         </p>
         {ballWeightError && (
-          <p id={weightErrorId} role="alert" className="mt-1 text-sm text-red-400">
+          <p id={weightErrorId} role="alert" className="mt-1 text-sm text-danger">
             {ballWeightError}
           </p>
         )}

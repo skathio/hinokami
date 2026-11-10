@@ -20,8 +20,8 @@ import UpdatePrompt from '@/ui/UpdatePrompt';
 
 function SplashScreen() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-950 text-zinc-100">
-      <p className="text-lg text-zinc-400">Loading your bake…</p>
+    <main className="flex min-h-dvh items-center justify-center bg-canvas text-ink">
+      <p className="text-lg text-muted">Loading your bake…</p>
     </main>
   );
 }

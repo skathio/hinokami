@@ -3,9 +3,10 @@
 // both the oven-max and ambient-temperature fields in `ConfigScreen`; each call site owns its
 // own bounds/error, this component only owns display-unit conversion.
 
-import { useId, useState } from 'react';
+import { useId } from 'react';
+import { setUnit, usePrefs, type UnitPref } from '@/prefs/prefs';
 
-export type TemperatureUnit = 'C' | 'F';
+export type TemperatureUnit = UnitPref;
 
 export interface TemperatureInputProps {
   label: string;
@@ -44,7 +45,9 @@ export default function TemperatureInput({
   maxC,
   error,
 }: TemperatureInputProps) {
-  const [unit, setUnit] = useState<TemperatureUnit>('C');
+  // The display unit is a shared preference (persisted outside the session store), so the oven
+  // and ambient fields always agree and the choice survives reloads.
+  const { unit } = usePrefs();
   const inputId = useId();
   const errorId = useId();
 
@@ -67,7 +70,7 @@ export default function TemperatureInput({
 
   return (
     <div>
-      <label htmlFor={inputId} className="block text-sm font-medium text-zinc-200">
+      <label htmlFor={inputId} className="block text-sm font-semibold text-ink">
         {label}
       </label>
       <div className="mt-1 flex gap-2">
@@ -80,7 +83,7 @@ export default function TemperatureInput({
           onBlur={onBlur}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
-          className="min-h-11 w-28 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-100 focus:border-zinc-400 focus:outline-none"
+          className="min-h-11 w-28 rounded-md border border-line bg-surface px-3 py-2 text-ink focus:border-ember"
         />
         <div role="group" aria-label={`${label} unit`} className="flex gap-1">
           <button
@@ -88,7 +91,7 @@ export default function TemperatureInput({
             aria-pressed={unit === 'C'}
             onClick={() => setUnit('C')}
             className={`min-h-11 min-w-11 rounded-md border px-3 text-sm ${
-              unit === 'C' ? 'border-zinc-300 bg-zinc-100 text-zinc-900' : 'border-zinc-700 text-zinc-300'
+              unit === 'C' ? 'border-ember bg-ember text-on-ember' : 'border-line text-muted hover:text-ink'
             }`}
           >
             °C
@@ -98,18 +101,18 @@ export default function TemperatureInput({
             aria-pressed={unit === 'F'}
             onClick={() => setUnit('F')}
             className={`min-h-11 min-w-11 rounded-md border px-3 text-sm ${
-              unit === 'F' ? 'border-zinc-300 bg-zinc-100 text-zinc-900' : 'border-zinc-700 text-zinc-300'
+              unit === 'F' ? 'border-ember bg-ember text-on-ember' : 'border-line text-muted'
             }`}
           >
             °F
           </button>
         </div>
       </div>
-      <p className="mt-1 text-xs text-zinc-500">
+      <p className="mt-1 text-xs text-muted">
         Valid range: {minDisplay}°{unit}–{maxDisplay}°{unit}
       </p>
       {error && (
-        <p id={errorId} role="alert" className="mt-1 text-sm text-red-400">
+        <p id={errorId} role="alert" className="mt-1 text-sm text-danger">
           {error}
         </p>
       )}

@@ -1,6 +1,7 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'node:path';
 import { pwaOptions } from './src/pwa/config';
@@ -15,7 +16,7 @@ import { pwaOptions } from './src/pwa/config';
 // on its own JS/CSS/icons.
 export default defineConfig({
   base: '/hinokami/',
-  plugins: [react(), VitePWA(pwaOptions)],
+  plugins: [react(), tailwindcss(), VitePWA(pwaOptions)],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),

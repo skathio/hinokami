@@ -31,13 +31,13 @@ export default function UpdatePrompt() {
   return (
     <div
       role="status"
-      className="flex items-start justify-between gap-4 border-b border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-200"
+      className="flex items-start justify-between gap-4 border-b border-line bg-surface px-4 py-3 text-sm text-ink"
     >
       <p>Hinokami has been updated.</p>
       <button
         type="button"
         onClick={handleReload}
-        className="min-h-11 shrink-0 rounded-md bg-red-900 px-4 font-medium text-zinc-100 hover:bg-red-800"
+        className="min-h-11 shrink-0 rounded-md bg-ember px-4 font-semibold text-on-ember hover:brightness-110"
       >
         Reload
       </button>

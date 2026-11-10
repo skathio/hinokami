@@ -12,18 +12,18 @@ import type { VitePWAOptions } from 'vite-plugin-pwa';
 
 export const pwaOptions: Partial<VitePWAOptions> = {
   registerType: 'prompt',
-  includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
+  includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mark.svg'],
   manifest: {
     name: 'Hinokami',
     short_name: 'Hinokami',
     description: 'Adaptive pizza workflow for your actual oven',
-    theme_color: '#09090b', // zinc-950; matches the app's dark theme
-    background_color: '#09090b',
+    theme_color: '#14100e', // canvas token, dark theme (the installed splash is always dark)
+    background_color: '#14100e',
     display: 'standalone',
     icons: [
       { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
       { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-      { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      { src: 'icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
   },
   workbox: {

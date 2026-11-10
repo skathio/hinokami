@@ -22,3 +22,6 @@ dist-ssr/
 
 # logs
 npm-debug.log*
+
+# test coverage reports
+coverage/

@@ -24,8 +24,8 @@ describe('pwaOptions', () => {
     }
     expect(manifest.name).toBe('Hinokami');
     expect(manifest.short_name).toBe('Hinokami');
-    expect(manifest.theme_color).toBe('#09090b');
-    expect(manifest.background_color).toBe('#09090b');
+    expect(manifest.theme_color).toBe('#14100e');
+    expect(manifest.background_color).toBe('#14100e');
     expect(manifest.display).toBe('standalone');
   });
 
@@ -39,7 +39,7 @@ describe('pwaOptions', () => {
       { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
       { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
       {
-        src: 'icons/icon-512.png',
+        src: 'icons/icon-maskable-512.png',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'maskable',

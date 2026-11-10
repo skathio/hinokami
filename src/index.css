@@ -1,3 +1,66 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Self-hosted variable display font (woff2, no third-party CDN). Bundled from src/fonts (SIL OFL 1.1, see src/fonts/OFL.txt). */
+@font-face {
+  font-family: "Bricolage Grotesque";
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("./fonts/bricolage-grotesque-latin-wght.woff2") format("woff2");
+}
+
+/* Semantic colour tokens, light values. Brand colours are hex on purpose. The ember is the
+   primary action (always paired with --color-on-ember text); gold marks times; the SoMi red is only ever a
+   filled shape in the logo and is never a colour token. */
+@theme static {
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-canvas: #faf6f1;
+  --color-surface: #ffffff;
+  --color-surface-2: #f2ebe2;
+  --color-ink: #1c1512;
+  --color-muted: #5c5148;
+  --color-line: #d9cfc3;
+  --color-accent: #b23a0a;
+  --color-accent-soft: #fde5d8;
+  --color-ember: #ff6a2b;
+  --color-sun: #7a4e00;
+  --color-caution: #8a4600;
+  --color-danger: #b42318;
+  --color-on-ember: #14100e;
+}
+
+/* Same names, swapped values. Set on <html data-theme> before first paint (index.html). */
+[data-theme="dark"] {
+  --color-canvas: #14100e;
+  --color-surface: #1d1714;
+  --color-surface-2: #271f1b;
+  --color-ink: #f6eee7;
+  --color-muted: #b5a79c;
+  --color-line: #3b312b;
+  --color-accent: #ff8a4d;
+  --color-accent-soft: #3a1d11;
+  --color-ember: #ff6a2b;
+  --color-sun: #f5a524;
+  --color-caution: #fbbf24;
+  --color-danger: #ff8077;
+  --color-on-ember: #14100e;
+  color-scheme: dark;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+  html[data-theme="dark"] {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-ember);
+    outline-offset: 2px;
+  }
+}

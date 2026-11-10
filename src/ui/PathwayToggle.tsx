@@ -14,7 +14,7 @@ export interface PathwayToggleProps {
 export default function PathwayToggle({ pathways, value, onChange, error }: PathwayToggleProps) {
   return (
     <div>
-      <span className="block text-sm font-medium text-zinc-200">Fermentation pathway</span>
+      <span className="block text-sm font-medium text-ink">Fermentation pathway</span>
       <div role="radiogroup" aria-label="Fermentation pathway" className="mt-1 flex flex-wrap gap-2">
         {pathways.map((pathway) => (
           <button
@@ -25,8 +25,8 @@ export default function PathwayToggle({ pathways, value, onChange, error }: Path
             onClick={() => onChange(pathway.id)}
             className={`min-h-11 rounded-md border px-4 py-2 text-sm ${
               value === pathway.id
-                ? 'border-zinc-300 bg-zinc-100 text-zinc-900'
-                : 'border-zinc-700 text-zinc-300'
+                ? 'border-ember bg-ember text-on-ember'
+                : 'border-line text-muted'
             }`}
           >
             {pathway.name}
@@ -34,7 +34,7 @@ export default function PathwayToggle({ pathways, value, onChange, error }: Path
         ))}
       </div>
       {error && (
-        <p role="alert" className="mt-1 text-sm text-red-400">
+        <p role="alert" className="mt-1 text-sm text-danger">
           {error}
         </p>
       )}
