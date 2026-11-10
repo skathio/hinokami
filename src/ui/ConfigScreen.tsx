@@ -74,53 +74,55 @@ function initialValues(): FormValues {
   };
 }
 
+function targetTimeError(targetTime: string, now: Date): string | undefined {
+  if (!targetTime) return 'Target ready time is required.';
+  const parsed = new Date(targetTime).getTime();
+  if (Number.isNaN(parsed)) return 'Enter a valid date and time.';
+  if (parsed <= now.getTime()) return 'Target ready time must be in the future.';
+  return undefined;
+}
+
+/** A required numeric field: `required` when blank, `outOfRange` when it fails `inRange`. */
+function numberError(
+  value: number | '',
+  inRange: (n: number) => boolean,
+  messages: { required: string; outOfRange: string },
+): string | undefined {
+  if (value === '') return messages.required;
+  return inRange(value) ? undefined : messages.outOfRange;
+}
+
 function validate(values: FormValues, bounds: RecipeBounds, now: Date): FieldErrors {
-  const errors: FieldErrors = {};
-
-  if (!values.targetTime) {
-    errors.targetTime = 'Target ready time is required.';
-  } else {
-    const parsed = new Date(values.targetTime);
-    if (Number.isNaN(parsed.getTime())) {
-      errors.targetTime = 'Enter a valid date and time.';
-    } else if (parsed.getTime() <= now.getTime()) {
-      errors.targetTime = 'Target ready time must be in the future.';
-    }
-  }
-
-  if (values.ovenMaxC === '') {
-    errors.ovenMaxC = 'Oven maximum temperature is required.';
-  } else if (values.ovenMaxC < OVEN_INPUT_MIN_C || values.ovenMaxC > OVEN_INPUT_MAX_C) {
-    errors.ovenMaxC = `Enter an oven temperature between ${OVEN_INPUT_MIN_C}°C and ${OVEN_INPUT_MAX_C}°C.`;
-  }
-
-  if (values.ambientC === '') {
-    errors.ambientC = 'Ambient room temperature is required.';
-  } else if (values.ambientC < bounds.ambientMin || values.ambientC > bounds.ambientMax) {
-    errors.ambientC = `Enter an ambient temperature between ${bounds.ambientMin}°C and ${bounds.ambientMax}°C.`;
-  }
-
-  if (values.ballCount === '') {
-    errors.ballCount = 'Number of dough balls is required.';
-  } else if (
-    !Number.isInteger(values.ballCount) ||
-    values.ballCount < bounds.ballCountMin ||
-    values.ballCount > bounds.ballCountMax
-  ) {
-    errors.ballCount = `Enter a whole number of dough balls between ${bounds.ballCountMin} and ${bounds.ballCountMax}.`;
-  }
-
-  if (values.ballWeightG === '') {
-    errors.ballWeightG = 'Ball weight is required.';
-  } else if (values.ballWeightG < bounds.ballWeightGMin || values.ballWeightG > bounds.ballWeightGMax) {
-    errors.ballWeightG = `Enter a ball weight between ${bounds.ballWeightGMin} g and ${bounds.ballWeightGMax} g.`;
-  }
-
-  if (!values.pathway) {
-    errors.pathway = 'Choose a fermentation pathway.';
-  }
-
-  return errors;
+  const between = (min: number, max: number) => (n: number) => n >= min && n <= max;
+  const candidates: FieldErrors = {
+    targetTime: targetTimeError(values.targetTime, now),
+    ovenMaxC: numberError(values.ovenMaxC, between(OVEN_INPUT_MIN_C, OVEN_INPUT_MAX_C), {
+      required: 'Oven maximum temperature is required.',
+      outOfRange: `Enter an oven temperature between ${OVEN_INPUT_MIN_C}°C and ${OVEN_INPUT_MAX_C}°C.`,
+    }),
+    ambientC: numberError(values.ambientC, between(bounds.ambientMin, bounds.ambientMax), {
+      required: 'Ambient room temperature is required.',
+      outOfRange: `Enter an ambient temperature between ${bounds.ambientMin}°C and ${bounds.ambientMax}°C.`,
+    }),
+    ballCount: numberError(
+      values.ballCount,
+      (n) => Number.isInteger(n) && between(bounds.ballCountMin, bounds.ballCountMax)(n),
+      {
+        required: 'Number of dough balls is required.',
+        outOfRange: `Enter a whole number of dough balls between ${bounds.ballCountMin} and ${bounds.ballCountMax}.`,
+      },
+    ),
+    ballWeightG: numberError(values.ballWeightG, between(bounds.ballWeightGMin, bounds.ballWeightGMax), {
+      required: 'Ball weight is required.',
+      outOfRange: `Enter a ball weight between ${bounds.ballWeightGMin} g and ${bounds.ballWeightGMax} g.`,
+    }),
+    pathway: values.pathway ? undefined : 'Choose a fermentation pathway.',
+  };
+  // Only fields with an error appear in the result, so `Object.keys(errors).length` stays the
+  // "is the form valid" check its callers rely on.
+  return Object.fromEntries(
+    Object.entries(candidates).filter(([, message]) => message !== undefined),
+  ) as FieldErrors;
 }
 
 /** `Date` → a `datetime-local` input's expected local-time string, used to pre-fill the target
