@@ -15,7 +15,7 @@ jobs:
       pull-requests: write      # coverage-report sticky comment
       security-events: write    # CodeQL (when scan_disable enables it)
     with:
-      node_version: '20'
+      node_version: '24'
       build_command: 'npm run build'    # literal, never derived from PR context (NFR-9)
       library_ref: 'e4facc4ca8d8896285931a3b80a1a958584d1a85'  # MUST match the uses: SHA above
   deploy:
