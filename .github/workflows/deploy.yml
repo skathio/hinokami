@@ -6,7 +6,20 @@ on:
 permissions: {}   # deny-all default; each job grants only what it needs
 
 jobs:
+  # One release, one approval: the deploy is Hinokami's release, so it waits here for the
+  # `production` Environment's owner approval before anything builds. The commit already passed
+  # pr.yml's CI as a PR; approving first means the Pages artifact built next is never older than
+  # the approval (it is kept for a day). `github-pages` itself carries no reviewer.
+  gate:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions: {}
+    steps:
+      - name: Owner approval
+        run: echo "Approved in the production environment."
+
   ci:
+    needs: gate
     uses: skathio/hashira/.github/workflows/static-webapp-ci.yml@e4facc4ca8d8896285931a3b80a1a958584d1a85
     permissions:
       contents: read
@@ -21,8 +34,12 @@ jobs:
   deploy:
     needs: ci   # same-run artifact handoff — omitting this makes deploy start before the
                 # artifact is uploaded and fail with "no artifact found"
+    # One Pages deploy at a time; a newer approved run queues behind an older one instead of racing it.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     runs-on: ubuntu-latest
-    environment: github-pages   # the gate — configure with >=1 required reviewer (see below)
+    environment: github-pages   # main only; the approval is at `gate`
     permissions:
       contents: read
       pages: write               # required by deploy-pages
