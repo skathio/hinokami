@@ -6,20 +6,9 @@ on:
 permissions: {}   # deny-all default; each job grants only what it needs
 
 jobs:
-  # One release, one approval: the deploy is Hinokami's release, so it waits here for the
-  # `production` Environment's owner approval before anything builds. The commit already passed
-  # pr.yml's CI as a PR; approving first means the Pages artifact built next is never older than
-  # the approval (it is kept for a day). `github-pages` itself carries no reviewer.
-  gate:
-    runs-on: ubuntu-latest
-    environment: production
-    permissions: {}
-    steps:
-      - name: Owner approval
-        run: echo "Approved in the production environment."
-
+  # The merge is the approval: main only takes reviewed pull requests (or an owner), so a push to
+  # main builds and deploys with no second, manual approval. github-pages accepts main only.
   ci:
-    needs: gate
     uses: skathio/hashira/.github/workflows/static-webapp-ci.yml@e4facc4ca8d8896285931a3b80a1a958584d1a85
     permissions:
       contents: read
@@ -39,7 +28,7 @@ jobs:
       group: pages
       cancel-in-progress: false
     runs-on: ubuntu-latest
-    environment: github-pages   # main only; the approval is at `gate`
+    environment: github-pages   # main only; the merge is the approval
     permissions:
       contents: read
       pages: write               # required by deploy-pages
