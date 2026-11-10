@@ -71,6 +71,9 @@ function reviveHow(raw: unknown): ReadonlyArray<HowStep> | undefined {
   return filtered.length > 0 ? filtered : undefined;
 }
 
+const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+const isPositive = (v: unknown): v is number => isFiniteNumber(v) && v > 0;
+
 function reviveScheduledStep(raw: unknown): ScheduledStep | null {
   if (!isPlainObject(raw)) return null;
   const { stageId, name, why, cue, how, durationMinutes, clockStartTime, isEstimate } = raw;
@@ -78,7 +81,7 @@ function reviveScheduledStep(raw: unknown): ScheduledStep | null {
   if (typeof name !== 'string') return null;
   if (typeof why !== 'string') return null;
   if (cue !== undefined && typeof cue !== 'string') return null;
-  if (typeof durationMinutes !== 'number') return null;
+  if (!isFiniteNumber(durationMinutes) || durationMinutes < 0) return null;
   if (typeof isEstimate !== 'boolean') return null;
   if (typeof clockStartTime !== 'string' && !(clockStartTime instanceof Date)) return null;
 
@@ -114,18 +117,30 @@ function isValidBakeAdaptationShape(raw: unknown): raw is BakeAdaptation {
   );
 }
 
+/** Range checks stay structural (finite, positive, a real date), not the recipe's own bounds:
+ * persistence doesn't know the recipe, and a bound that changes between recipe versions must not
+ * discard an in-progress bake (the content axis is continue-and-notify, see `migrate`). */
 function isValidInputsShape(raw: unknown): raw is BakeSession['inputs'] {
   if (!isPlainObject(raw)) return false;
   const { targetTime, ovenMaxC, hasStoneOrSteel, ambientC, ballCount, ballWeightG, pathway } = raw;
   return (
     typeof targetTime === 'string' &&
-    typeof ovenMaxC === 'number' &&
+    !Number.isNaN(new Date(targetTime).getTime()) &&
+    isPositive(ovenMaxC) &&
     typeof hasStoneOrSteel === 'boolean' &&
-    typeof ambientC === 'number' &&
-    typeof ballCount === 'number' &&
-    typeof ballWeightG === 'number' &&
+    isFiniteNumber(ambientC) &&
+    isPositive(ballCount) &&
+    Number.isInteger(ballCount) &&
+    isPositive(ballWeightG) &&
     (pathway === 'same-day' || pathway === 'cold-ferment')
   );
+}
+
+/** The runner reads `workflow[stepIndex]` unguarded, so the index must point at a real step. A
+ * completed session stays on its last step (`progression.advance`), so the range is the same
+ * for both statuses. */
+function isValidStepIndex(stepIndex: unknown, workflowLength: number): stepIndex is number {
+  return Number.isInteger(stepIndex) && (stepIndex as number) >= 0 && (stepIndex as number) < workflowLength;
 }
 
 /**
@@ -146,8 +161,8 @@ export function restore(raw: unknown): BakeSession | null {
   if (!isValidRecipeIdShape(parsed.recipeId)) return null;
   if (typeof parsed.recipeContentVersion !== 'string') return null;
   if (!isValidInputsShape(parsed.inputs)) return null;
-  if (!Array.isArray(parsed.workflow)) return null;
-  if (typeof parsed.stepIndex !== 'number') return null;
+  if (!Array.isArray(parsed.workflow) || parsed.workflow.length === 0) return null;
+  if (!isValidStepIndex(parsed.stepIndex, parsed.workflow.length)) return null;
   if (parsed.status !== 'in-progress' && parsed.status !== 'completed') return null;
 
   const workflow: ScheduledStep[] = [];
