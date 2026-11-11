@@ -62,7 +62,7 @@ describe('StepRunnerScreen progress rail', () => {
     useSessionStore.setState({ session: session(1, flow), view: 'runner' });
     render(<StepRunnerScreen />);
     const countdown = screen.getByText(/m left/);
-    const done = screen.getByRole('button', { name: /done/i });
+    const done = screen.getByRole('button', { name: 'Next' });
     expect(countdown.closest('.sticky')).not.toBeNull();
     expect(countdown.closest('.sticky')).toBe(done.closest('.sticky'));
   });

@@ -8,6 +8,10 @@ import type { Pathway, PathwayRef } from '@/recipes/contract';
 export interface TargetTooSoonBannerProps {
   earliestFeasibleTarget: Date;
   alternativePathways: ReadonlyArray<PathwayRef>;
+  /** The target fits the clock but a step would land outside the user's awake hours. */
+  blockedByAwakeHours?: boolean;
+  /** No ready time in the next few days fits the awake hours for this pathway. */
+  awakeHoursTooNarrow?: boolean;
   /** All of the recipe's pathways, to resolve `alternativePathways` ids to display names. */
   pathways: ReadonlyArray<Pathway>;
   onAcceptEarliest: (earliestFeasibleTarget: Date) => void;
@@ -17,6 +21,8 @@ export interface TargetTooSoonBannerProps {
 export default function TargetTooSoonBanner({
   earliestFeasibleTarget,
   alternativePathways,
+  blockedByAwakeHours,
+  awakeHoursTooNarrow,
   pathways,
   onAcceptEarliest,
   onSwitchPathway,
@@ -31,9 +37,20 @@ export default function TargetTooSoonBanner({
       role="alert"
       className="rounded-md border border-caution bg-surface p-4 text-sm text-ink"
     >
-      <p className="font-medium">Your target time is too soon for this pathway</p>
-      <p className="mt-1">The earliest feasible ready time for this pathway is {formattedEarliest}.</p>
+      <p className="font-medium">
+        {blockedByAwakeHours || awakeHoursTooNarrow
+          ? 'This ready time would have you up outside your awake hours'
+          : 'Your target time is too soon for this pathway'}
+      </p>
+      <p className="mt-1">
+        {awakeHoursTooNarrow
+          ? 'No ready time in the next few days fits this pathway into your awake hours. Widen them, or try another pathway.'
+          : blockedByAwakeHours
+            ? `The nearest ready time that keeps every step within your awake hours is ${formattedEarliest}.`
+            : `The earliest feasible ready time for this pathway is ${formattedEarliest}.`}
+      </p>
       <div className="mt-3 flex flex-wrap gap-2">
+        {!awakeHoursTooNarrow && (
         <button
           type="button"
           onClick={() => onAcceptEarliest(earliestFeasibleTarget)}
@@ -41,6 +58,7 @@ export default function TargetTooSoonBanner({
         >
           Use {formattedEarliest}
         </button>
+        )}
         {alternativePathways.map((pathwayId) => {
           const pathway = pathways.find((p) => p.id === pathwayId);
           return (

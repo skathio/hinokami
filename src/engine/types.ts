@@ -23,6 +23,14 @@ export interface ScheduledStep extends Step {
   readonly isEstimate: boolean;
 }
 
+/** The hours of the day the user is awake and able to act, as minutes since local midnight. The
+ * window may wrap past midnight (a night-shift worker: 22:00 → 06:00). Equal bounds mean "always
+ * available". Every step start is a moment the user must act, so none may fall outside it. */
+export interface AwakeWindow {
+  readonly startMinute: number;
+  readonly endMinute: number;
+}
+
 /** The inputs a user provides to generate a workflow (FR-2/FR-3) — the schedule-solving side
  * of a `BakeSession`, before it's wrapped with session bookkeeping (schemaVersion, stepIndex, …). */
 export interface WorkflowInputs {
@@ -33,6 +41,8 @@ export interface WorkflowInputs {
   readonly ballCount: number;
   readonly ballWeightG: number;
   readonly pathway: PathwayRef;
+  /** When set, no step starts outside these hours. Omitted = no restriction. */
+  readonly awake?: AwakeWindow;
 }
 
 /** FR-11: the schedule solver's infeasibility result. `earliestFeasibleTarget` is always
@@ -41,6 +51,12 @@ export interface WorkflowInputs {
 export interface TargetTooSoon {
   readonly earliestFeasibleTarget: Date;
   readonly alternativePathways: ReadonlyArray<PathwayRef>;
+  /** True when the schedule fits the clock but a step would start outside the user's awake hours,
+   * so `earliestFeasibleTarget` is the nearest ready time that respects them. Absent otherwise. */
+  readonly blockedByAwakeHours?: true;
+  /** True when no ready time within a few days respects the awake hours (window too narrow for this
+   * pathway). `earliestFeasibleTarget` then ignores the window. */
+  readonly awakeHoursTooNarrow?: true;
 }
 
 /** `solveScheduleBackward`'s own result shape (P1 file layout). */

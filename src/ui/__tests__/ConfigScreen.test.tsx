@@ -346,3 +346,75 @@ describe('ConfigScreen default ball weight', () => {
     expect((screen.getByLabelText('Weight per ball (g)') as HTMLInputElement).value).toBe('250');
   });
 });
+
+describe('ConfigScreen awake hours', () => {
+  it('shows the default waking hours and saves a change to them', () => {
+    render(<ConfigScreen recipe={pizzaRecipe} />);
+    const from = screen.getByLabelText('Awake from') as HTMLInputElement;
+    const until = screen.getByLabelText('Awake until') as HTMLInputElement;
+    expect(from.value).toBe('07:00');
+    expect(until.value).toBe('23:00');
+
+    fireEvent.change(until, { target: { value: '22:30' } });
+    expect((screen.getByLabelText('Awake until') as HTMLInputElement).value).toBe('22:30');
+    expect(JSON.parse(localStorage.getItem('hinokami-prefs-v1') ?? '{}').awakeEndMinute).toBe(22 * 60 + 30);
+  });
+});
+
+describe('ConfigScreen — making a failed Generate visible', () => {
+  it('scrolls the target-too-soon banner into view and focuses it', () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    render(<ConfigScreen recipe={pizzaRecipe} />);
+
+    fillTargetTime(new Date(Date.now() + 10 * 60_000));
+    fillOven(250);
+    fillAmbient(24);
+    fillBallCount(2);
+    selectPathway('Cold ferment');
+    scrollIntoView.mockClear();
+    submit();
+
+    const banner = screen.getByText(/too soon/i).closest('[role="alert"]') as HTMLElement;
+    expect(scrollIntoView).toHaveBeenCalled();
+    expect(banner.parentElement).toHaveFocus();
+  });
+
+  it('scrolls to and focuses the first invalid field', () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    render(<ConfigScreen recipe={pizzaRecipe} />);
+    submit();
+    expect(screen.getByLabelText('Target ready time')).toHaveFocus();
+  });
+});
+
+describe('ConfigScreen — stone or steel wording', () => {
+  it('asks a pan-baked style about putting the pan on a stone, not the dough', () => {
+    render(<ConfigScreen recipe={sicilianRecipe} />);
+    expect(screen.getByLabelText(/pan on a preheated stone or steel/i)).toBeInTheDocument();
+  });
+
+  it('keeps the plain wording for a style baked directly on the stone', () => {
+    render(<ConfigScreen recipe={pizzaRecipe} />);
+    expect(screen.getByLabelText('I have a pizza stone or steel')).toBeInTheDocument();
+  });
+});
+
+describe('ConfigScreen — stale banners', () => {
+  it('drops an earlier too-soon banner when the next submit fails validation', () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    render(<ConfigScreen recipe={pizzaRecipe} />);
+    fillTargetTime(new Date(Date.now() + 10 * 60_000));
+    fillOven(250);
+    fillAmbient(24);
+    fillBallCount(2);
+    selectPathway('Cold ferment');
+    submit();
+    expect(screen.getByText(/too soon/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Target ready time'), { target: { value: '' } });
+    submit();
+    expect(screen.queryByText(/too soon/i)).not.toBeInTheDocument();
+    expect(screen.getByText('Target ready time is required.')).toBeInTheDocument();
+  });
+});

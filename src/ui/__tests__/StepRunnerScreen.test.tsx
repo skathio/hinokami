@@ -439,11 +439,11 @@ describe('StepRunnerScreen — Recipe Card (iteration 1.2)', () => {
 });
 
 describe('StepRunnerScreen — advance / back (FR-7)', () => {
-  it('"Done — next step" calls store.advanceStep', () => {
+  it('"Next" calls store.advanceStep', () => {
     const state = mockStore(buildSession());
 
     render(<StepRunnerScreen />);
-    fireEvent.click(screen.getByRole('button', { name: /done — next step/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
     expect(state.advanceStep).toHaveBeenCalledTimes(1);
   });
@@ -521,5 +521,20 @@ describe('StepRunnerScreen — completion (FR-7, FR-20)', () => {
     expect(screen.getByText(/you.re done — enjoy your pizza/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /start a new bake/i }));
     expect(state.resetSession).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('StepRunnerScreen — action buttons are visually tiered', () => {
+  it('keeps the primary action largest and sets the destructive action apart from the tools', () => {
+    mockStore(buildSession({ workflow: [buildStep({ name: 'Mix' })] }));
+    render(<StepRunnerScreen />);
+    const done = screen.getByRole('button', { name: 'Next' });
+    const abandon = screen.getByRole('button', { name: /abandon/i });
+    const recipe = screen.getByRole('button', { name: 'Recipe' });
+    expect(done.className).toContain('bg-ember');
+    expect(recipe.className).not.toContain('bg-ember');
+    expect(abandon.className).toContain('text-danger');
+    expect(recipe.parentElement).not.toBe(abandon.parentElement);
+    expect(screen.getByRole('button', { name: 'Go back' })).toBeInTheDocument();
   });
 });

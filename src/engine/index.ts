@@ -1,6 +1,7 @@
 // Public engine surface — what recipes and the UI/store are meant to import from.
 
 export type {
+  AwakeWindow,
   BakeSession,
   ScaledIngredient,
   ScheduledStep,
@@ -14,7 +15,7 @@ export type { Batch } from './scaling';
 export { scaleFormula } from './scaling';
 
 export type { RescheduleResult } from './schedule';
-export { reschedule, solveScheduleBackward } from './schedule';
+export { isAwakeAt, reschedule, solveScheduleBackward } from './schedule';
 
 export type { GenerateWorkflowResult } from './workflow';
 export { generateWorkflow, resolveScaledIngredients } from './workflow';
