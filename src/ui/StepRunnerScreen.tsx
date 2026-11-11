@@ -62,11 +62,10 @@ function resolveHowIngredientRefs(
 const BAKE_STAGE_ID = 'bake';
 
 // Three tiers of action, each looking like what it does: the one primary action (advance), tool
-// tiles that open or adjust something and can be undone, and a quiet destructive action set apart.
+// tiles (back included) that open or adjust something and can be undone, and a quiet destructive
+// action set apart.
 const toolTile =
   'flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border border-line bg-surface px-1 py-2 text-sm font-semibold leading-tight text-ink hover:bg-surface-2';
-const backButton =
-  'flex min-h-16 w-20 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border-2 border-line bg-surface text-sm font-semibold text-ink hover:bg-surface-2';
 const abandonButton =
   'mx-auto flex min-h-11 items-center gap-2 rounded-md px-4 text-sm font-semibold text-danger underline-offset-4 hover:underline';
 
@@ -245,20 +244,18 @@ export default function StepRunnerScreen() {
       <div className="sticky bottom-0 border-t border-line bg-canvas pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
         <div className="mx-auto w-full max-w-lg space-y-3 px-5">
           <CountdownTimer />
-          <div className="flex gap-3">
-            <button type="button" onClick={backStep} aria-label="Go back" className={backButton}>
+          <button
+            type="button"
+            onClick={advanceStep}
+            className="min-h-16 w-full rounded-xl bg-ember px-4 py-4 text-center text-2xl font-bold text-on-ember hover:brightness-90"
+          >
+            Next
+          </button>
+          <div className="grid grid-cols-4 gap-2">
+            <button type="button" onClick={backStep} aria-label="Go back" className={toolTile}>
               <Icon path={ICON_BACK} />
               Back
             </button>
-            <button
-              type="button"
-              onClick={advanceStep}
-              className="min-h-16 flex-1 rounded-xl bg-ember px-4 py-4 text-2xl font-bold text-on-ember hover:brightness-90"
-            >
-              Next
-            </button>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
             <button
               type="button"
               aria-expanded={nudgeOpen}
