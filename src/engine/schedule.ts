@@ -4,7 +4,7 @@
 // post-placement guard that replaced the retired elastic-only pre-clamp guard).
 
 import type { Recipe, Stage, TimingContext } from '@/recipes/contract';
-import type { ScheduledStep, WorkflowInputs, WorkflowResult } from './types';
+import type { AwakeWindow, ScheduledStep, WorkflowInputs, WorkflowResult } from './types';
 
 function addMinutes(date: Date, minutes: number): Date {
   return new Date(date.getTime() + minutes * 60_000);
@@ -172,29 +172,49 @@ function assignClockTimes(stages: Stage[], placed: Map<string, number>, targetTi
   return steps;
 }
 
+/** Whether the user can act at `date`, in their local time. */
+export function isAwakeAt(date: Date, awake: AwakeWindow): boolean {
+  const { startMinute, endMinute } = awake;
+  if (startMinute === endMinute) return true;
+  const minute = date.getHours() * 60 + date.getMinutes();
+  return startMinute < endMinute
+    ? minute >= startMinute && minute < endMinute
+    : minute >= startMinute || minute < endMinute;
+}
+
+const allAwake = (steps: ReadonlyArray<ScheduledStep>, awake: AwakeWindow): boolean =>
+  steps.every((step) => isAwakeAt(step.clockStartTime, awake));
+
+/** How far ahead, and in what increments, to look for a ready time that respects the awake hours.
+ * Coarse on purpose: the search runs a full placement per candidate, and quarter-hour ready times
+ * are what a person would pick anyway. */
+const AWAKE_SEARCH_DAYS = 3;
+const AWAKE_SEARCH_STEP_MINUTES = 15;
+/** The config screen rounds an accepted suggestion up to the next minute and adds a one-minute
+ * buffer (up to two minutes in all); a suggestion is only offered if it fits across that range. */
+const ACCEPT_NUDGE_MS = [0, 60_000, 120_000];
+
+/** What every placement needs besides the inputs: the recipe, the resolved bake time, and "now". */
+interface SolveContext {
+  readonly recipe: Recipe;
+  readonly bakeTimeMinutes: number;
+  readonly now: Date;
+}
+
+type Placement = { ok: true; steps: ScheduledStep[] } | { ok: false; cause: 'too-soon' | 'awake-hours' };
+
 /**
- * Solves a pathway's stage start times backward from `inputs.targetTime` (the ready/eat time —
- * `spec.md §1`). `bakeTimeMinutes` is the already-resolved bake duration (from
- * `recipe.adaptBake`, via `generateWorkflow`) — this function never calls `adaptBake` itself
- * (restart-pass-2 fix). `now` defaults to the real current time; tests inject a fixed value so
- * the universal post-placement guard (below) is deterministic.
+ * Places the whole pathway backward from `inputs.targetTime`, or says why it cannot be done.
+ * `elasticStepMinutes` is the resolution used when shortening the elastic stage to dodge the
+ * user's sleeping hours.
  *
- * Two independent feasibility checks:
- *  (a) a cheap warmest-ambient minimum-feasible-total early-out (D13) — catches "impossible no
- *      matter how warm the kitchen is" before attempting any real placement.
- *  (b) a universal post-placement guard — after placing the full schedule at the user's actual
- *      (possibly colder) ambient, checks whether the earliest stage's clock start time is
- *      already in the past. This is what actually protects placement; (a) is only the cheap
- *      first check. It replaced an earlier elastic-only "pre-clamp" guard that missed the
- *      identical failure class on the same-day pathway — see `decisions.md P3` for the full
- *      fix history.
+ * Every step start is a moment the user must act, so with an awake window each must fall inside
+ * it. Only the elastic stage can flex: its end is pinned by the stages after it, and shortening it
+ * moves its start (and everything before it) later, never before `now`. Fixed stages cannot move,
+ * so a same-day pathway either fits the window or does not.
  */
-export function solveScheduleBackward(
-  recipe: Recipe,
-  inputs: WorkflowInputs,
-  bakeTimeMinutes: number,
-  now: Date = new Date(),
-): WorkflowResult {
+function placeSchedule(ctx: SolveContext, inputs: WorkflowInputs, elasticStepMinutes: number): Placement {
+  const { recipe, bakeTimeMinutes, now } = ctx;
   const { stages } = resolveOrderedStages(recipe, inputs.pathway);
   const basis: DurationBasis = { recipe, pathwayId: inputs.pathway, bakeTimeMinutes };
   const timeToTargetMinutes = diffMinutes(inputs.targetTime, now);
@@ -207,7 +227,7 @@ export function solveScheduleBackward(
   // (it would clear this same check again on retry, then trip the (b) guard below). The
   // suggestion is always recomputed at the actual ambient — see `targetTooSoon`.
   if (timeToTargetMinutes < minimumTotalAt(basis, stages, recipe.bounds.ambientMax)) {
-    return targetTooSoon(recipe, inputs, bakeTimeMinutes, now);
+    return { ok: false, cause: 'too-soon' };
   }
 
   const placed = placedDurations(basis, stages, inputs.ambientC, timeToTargetMinutes);
@@ -216,10 +236,83 @@ export function solveScheduleBackward(
   // (b) Universal post-placement guard — is the earliest placed stage already in the past?
   const earliestStart = scheduledSteps[0]?.clockStartTime ?? inputs.targetTime;
   if (earliestStart.getTime() < now.getTime() - PLACEMENT_TOLERANCE_MS) {
-    return targetTooSoon(recipe, inputs, bakeTimeMinutes, now);
+    return { ok: false, cause: 'too-soon' };
   }
 
-  return { ok: true, steps: scheduledSteps };
+  const { awake } = inputs;
+  if (!awake || allAwake(scheduledSteps, awake)) return { ok: true, steps: scheduledSteps };
+
+  const elastic = stages.find((s) => s.elastic);
+  if (elastic?.elastic) {
+    const natural = placed.get(elastic.id)!;
+    for (let minutes = natural - elasticStepMinutes; minutes >= elastic.elastic.minMinutes; minutes -= elasticStepMinutes) {
+      placed.set(elastic.id, minutes);
+      const candidate = assignClockTimes(stages, placed, inputs.targetTime);
+      if (allAwake(candidate, awake)) return { ok: true, steps: candidate };
+    }
+  }
+  return { ok: false, cause: 'awake-hours' };
+}
+
+/** The infeasible result when awake hours are in play: the nearest ready time that respects them
+ * (searching forward from where the clock first allows it), and the other pathways that already
+ * work at the requested time. */
+function infeasibleWithAwakeHours(
+  ctx: SolveContext,
+  inputs: WorkflowInputs,
+  cause: 'too-soon' | 'awake-hours',
+): WorkflowResult {
+  const base = targetTooSoon(ctx.recipe, inputs, ctx.bakeTimeMinutes, ctx.now);
+  if (base.ok) return base; // unreachable: targetTooSoon always fails
+  const placesAt = (candidate: WorkflowInputs) =>
+    placeSchedule(ctx, candidate, AWAKE_SEARCH_STEP_MINUTES).ok;
+
+  const alternativePathways = base.error.alternativePathways.filter(
+    (pathway) => placeSchedule(ctx, { ...inputs, pathway }, 1).ok,
+  );
+
+  const searchFrom = cause === 'too-soon' ? base.error.earliestFeasibleTarget : inputs.targetTime;
+  const stepMs = AWAKE_SEARCH_STEP_MINUTES * 60_000;
+  const limit = searchFrom.getTime() + AWAKE_SEARCH_DAYS * 24 * 60 * 60_000;
+  for (let t = searchFrom.getTime(); t <= limit; t += stepMs) {
+    const fits = ACCEPT_NUDGE_MS.every((nudge) => placesAt({ ...inputs, targetTime: new Date(t + nudge) }));
+    if (fits) {
+      return {
+        ok: false,
+        error: {
+          earliestFeasibleTarget: new Date(t),
+          alternativePathways,
+          ...(t > searchFrom.getTime() || cause === 'awake-hours' ? { blockedByAwakeHours: true as const } : {}),
+        },
+      };
+    }
+  }
+  return { ok: false, error: { ...base.error, alternativePathways, awakeHoursTooNarrow: true } };
+}
+
+/**
+ * Solves a pathway's stage start times backward from `inputs.targetTime` (the ready/eat time —
+ * `spec.md §1`). `bakeTimeMinutes` is the already-resolved bake duration (from
+ * `recipe.adaptBake`, via `generateWorkflow`) — this function never calls `adaptBake` itself
+ * (restart-pass-2 fix). `now` defaults to the real current time; tests inject a fixed value so
+ * the universal post-placement guard (see `placeSchedule`) is deterministic.
+ *
+ * Feasibility has three independent checks, all in `placeSchedule`: a cheap warmest-ambient
+ * early-out (D13), a universal post-placement guard (is the earliest stage already in the past —
+ * see `decisions.md P3` for the fix history), and, when `inputs.awake` is set, that no step starts
+ * while the user is asleep.
+ */
+export function solveScheduleBackward(
+  recipe: Recipe,
+  inputs: WorkflowInputs,
+  bakeTimeMinutes: number,
+  now: Date = new Date(),
+): WorkflowResult {
+  const ctx: SolveContext = { recipe, bakeTimeMinutes, now };
+  const placement = placeSchedule(ctx, inputs, 1);
+  if (placement.ok) return { ok: true, steps: placement.steps };
+  if (!inputs.awake) return targetTooSoon(recipe, inputs, bakeTimeMinutes, now);
+  return infeasibleWithAwakeHours(ctx, inputs, placement.cause);
 }
 
 /** `reschedule`'s result (review fix, pass 2): `clamped` is a real engine-computed signal —

@@ -13,9 +13,26 @@ export type UnitPref = 'C' | 'F';
 export interface Prefs {
   readonly theme: ThemePref;
   readonly unit: UnitPref;
+  /** Hours the user is awake and can act, as minutes since local midnight. Defaults to 07:00-23:00
+   * so a schedule never asks anyone to get up in the small hours. */
+  readonly awakeStartMinute: number;
+  readonly awakeEndMinute: number;
 }
 
-export const DEFAULT_PREFS: Prefs = { theme: 'system', unit: 'C' };
+export const DEFAULT_PREFS: Prefs = {
+  theme: 'system',
+  unit: 'C',
+  awakeStartMinute: 7 * 60,
+  awakeEndMinute: 23 * 60,
+};
+
+const MINUTES_PER_DAY = 24 * 60;
+
+function minuteOfDay(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < MINUTES_PER_DAY
+    ? value
+    : fallback;
+}
 
 const THEMES: ReadonlyArray<ThemePref> = ['system', 'light', 'dark'];
 const UNITS: ReadonlyArray<UnitPref> = ['C', 'F'];
@@ -33,7 +50,12 @@ export function parsePrefs(raw: string | null): Prefs {
   const record = data as Record<string, unknown>;
   const theme = THEMES.find((t) => t === record.theme) ?? DEFAULT_PREFS.theme;
   const unit = UNITS.find((u) => u === record.unit) ?? DEFAULT_PREFS.unit;
-  return { theme, unit };
+  return {
+    theme,
+    unit,
+    awakeStartMinute: minuteOfDay(record.awakeStartMinute, DEFAULT_PREFS.awakeStartMinute),
+    awakeEndMinute: minuteOfDay(record.awakeEndMinute, DEFAULT_PREFS.awakeEndMinute),
+  };
 }
 
 export function resolveTheme(theme: ThemePref, systemPrefersDark: boolean): 'light' | 'dark' {
@@ -82,6 +104,15 @@ export function setTheme(theme: ThemePref): void {
 
 export function setUnit(unit: UnitPref): void {
   update({ ...current, unit });
+}
+
+/** Out-of-range values are ignored rather than stored. */
+export function setAwakeHours(startMinute: number, endMinute: number): void {
+  update({
+    ...current,
+    awakeStartMinute: minuteOfDay(startMinute, current.awakeStartMinute),
+    awakeEndMinute: minuteOfDay(endMinute, current.awakeEndMinute),
+  });
 }
 
 /** Re-reads storage (used by tests and when another tab changes the key). */

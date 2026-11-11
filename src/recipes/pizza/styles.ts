@@ -136,6 +136,7 @@ function buildStyle(opts: {
   bounds: Partial<RecipeBounds>;
   curve: BakeCurve;
   how: Record<string, HowStep[]>;
+  panBaked?: boolean;
 }): Recipe {
   const bounds: RecipeBounds = { ...pizzaBounds, ...opts.bounds };
   const pathways: Pathway[] = pizzaRecipe.pathways.map((p) => ({
@@ -148,6 +149,7 @@ function buildStyle(opts: {
     name: opts.name,
     shortName: opts.shortName,
     icon: opts.icon,
+    panBaked: opts.panBaked,
     description: opts.description,
     formula: pathways[0].formula!,
     pathways,
@@ -159,6 +161,7 @@ function buildStyle(opts: {
 }
 
 export const sicilianRecipe: Recipe = buildStyle({
+  panBaked: true,
   id: 'pizza-sicilian-home',
   name: 'Sicilian pizza',
   shortName: 'Sicilian',

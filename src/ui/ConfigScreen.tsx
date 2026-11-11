@@ -14,11 +14,15 @@
 // considered implementation deviation, not a DoD violation — no DoD line requires the `disabled`
 // HTML attribute specifically.
 
-import { useState, type FormEvent } from 'react';
+import { useMemo, useRef, useState, type FormEvent } from 'react';
 import type { OvenTooCold, PathwayRef, Recipe, RecipeBounds } from '@/recipes/contract';
-import type { TargetTooSoon, WorkflowInputs } from '@/engine';
+import type { AwakeWindow, TargetTooSoon, WorkflowInputs } from '@/engine';
 import { generateWorkflow, type GenerateWorkflowResult } from '@/engine';
 import { useSessionStore } from '@/store/session';
+import { usePrefs } from '@/prefs/prefs';
+import { useRevealWhen } from '@/hooks/useRevealWhen';
+import AwakeHoursFieldset from './AwakeHoursFieldset';
+import StoneOrSteelCheckbox from './StoneOrSteelCheckbox';
 import TemperatureInput from './TemperatureInput';
 import PathwayToggle from './PathwayToggle';
 import BatchInput from './BatchInput';
@@ -169,8 +173,9 @@ function earliestSelectableTargetValue(
 }
 
 /** Computes the live schedule for the summary; only called once every field validates. */
-function previewWorkflow(recipe: Recipe, values: FormValues): GenerateWorkflowResult {
+function previewWorkflow(recipe: Recipe, values: FormValues, awake: AwakeWindow): GenerateWorkflowResult {
   return generateWorkflow(recipe, {
+    awake,
     targetTime: new Date(values.targetTime),
     ovenMaxC: values.ovenMaxC as number,
     hasStoneOrSteel: values.hasStoneOrSteel,
@@ -181,15 +186,27 @@ function previewWorkflow(recipe: Recipe, values: FormValues): GenerateWorkflowRe
   });
 }
 
+const firstInvalidField = (form: HTMLFormElement | null) =>
+  form?.querySelector<HTMLElement>('[aria-invalid="true"]');
+
 export default function ConfigScreen({ recipe }: ConfigScreenProps) {
   const startSession = useSessionStore((state) => state.startSession);
   const setView = useSessionStore((state) => state.setView);
+
+  const { awakeStartMinute, awakeEndMinute } = usePrefs();
+  const awake: AwakeWindow = { startMinute: awakeStartMinute, endMinute: awakeEndMinute };
 
   const [values, setValues] = useState<FormValues>(() => initialValues(recipe.bounds));
   const [touched, setTouched] = useState<Partial<Record<keyof FormValues, boolean>>>({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [ovenTooCold, setOvenTooCold] = useState<OvenTooCold | null>(null);
   const [targetTooSoon, setTargetTooSoon] = useState<TargetTooSoon | null>(null);
+  const [submitCount, setSubmitCount] = useState(0);
+  const formRef = useRef<HTMLFormElement>(null);
+  const bannerRef = useRef<HTMLDivElement>(null);
+
+  useRevealWhen(() => bannerRef.current, ovenTooCold ?? targetTooSoon, Boolean(ovenTooCold || targetTooSoon));
+  useRevealWhen(() => firstInvalidField(formRef.current), submitCount, submitCount > 0);
 
   const errors = validate(values, recipe.bounds, new Date());
   const fieldError = (field: keyof FieldErrors): string | undefined =>
@@ -204,6 +221,7 @@ export default function ConfigScreen({ recipe }: ConfigScreenProps) {
     setTargetTooSoon(null);
 
     const inputs: WorkflowInputs = {
+      awake,
       targetTime: new Date(nextValues.targetTime),
       ovenMaxC: nextValues.ovenMaxC as number,
       hasStoneOrSteel: nextValues.hasStoneOrSteel,
@@ -226,7 +244,12 @@ export default function ConfigScreen({ recipe }: ConfigScreenProps) {
   function handleSubmit(event: FormEvent): void {
     event.preventDefault();
     setSubmitAttempted(true);
-    if (Object.keys(validate(values, recipe.bounds, new Date())).length > 0) return;
+    setSubmitCount((count) => count + 1);
+    if (Object.keys(validate(values, recipe.bounds, new Date())).length > 0) {
+      setOvenTooCold(null);
+      setTargetTooSoon(null);
+      return;
+    }
     attemptGenerate(values);
   }
 
@@ -247,7 +270,12 @@ export default function ConfigScreen({ recipe }: ConfigScreenProps) {
 
   const parsedTarget = values.targetTime ? new Date(values.targetTime) : null;
   const formValid = Object.keys(errors).length === 0;
-  const preview = formValid ? previewWorkflow(recipe, values) : null;
+  // The solver can run hundreds of placements when the awake hours do not fit, so recompute only
+  // when an input actually changes, not on every render.
+  const preview = useMemo(
+    () => (formValid ? previewWorkflow(recipe, values, { startMinute: awakeStartMinute, endMinute: awakeEndMinute }) : null),
+    [formValid, recipe, values, awakeStartMinute, awakeEndMinute],
+  );
 
   /** Jumps to the first control of a form group (used by the summary chips). */
   function focusSection(section: SummarySection): void {
@@ -259,7 +287,7 @@ export default function ConfigScreen({ recipe }: ConfigScreenProps) {
   return (
     <main className="min-h-dvh bg-canvas text-ink">
       <AppHeader />
-      <form onSubmit={handleSubmit} noValidate className="mx-auto max-w-lg">
+      <form ref={formRef} onSubmit={handleSubmit} noValidate className="mx-auto max-w-lg">
         <div className="space-y-6 px-4 pb-6 pt-4">
           <div>
             <button
@@ -273,6 +301,7 @@ export default function ConfigScreen({ recipe }: ConfigScreenProps) {
             <p className="mt-1 text-base text-muted">{recipe.description}</p>
           </div>
 
+          <div ref={bannerRef} tabIndex={-1} className="space-y-6 outline-none empty:hidden">
           {ovenTooCold && (
             <OvenTooColdBanner
               reason={ovenTooCold.reason}
@@ -285,13 +314,13 @@ export default function ConfigScreen({ recipe }: ConfigScreenProps) {
 
           {targetTooSoon && (
             <TargetTooSoonBanner
-              earliestFeasibleTarget={targetTooSoon.earliestFeasibleTarget}
-              alternativePathways={targetTooSoon.alternativePathways}
+              {...targetTooSoon}
               pathways={recipe.pathways}
               onAcceptEarliest={handleAcceptEarliest}
               onSwitchPathway={handleSwitchPathway}
             />
           )}
+          </div>
 
           <fieldset id="section-when" className="flex flex-col gap-4 rounded-2xl border border-line bg-surface p-4">
             <legend className="px-2 font-display text-lg font-bold text-sun">When</legend>
@@ -316,6 +345,8 @@ export default function ConfigScreen({ recipe }: ConfigScreenProps) {
             </div>
           </fieldset>
 
+          <AwakeHoursFieldset />
+
           <fieldset id="section-oven" className="flex flex-col gap-4 rounded-2xl border border-line bg-surface p-4">
             <legend className="px-2 font-display text-lg font-bold text-sun">Oven</legend>
             <TemperatureInput
@@ -328,17 +359,11 @@ export default function ConfigScreen({ recipe }: ConfigScreenProps) {
               error={fieldError('ovenMaxC')}
             />
 
-            <label className="flex min-h-11 items-center gap-3 text-base text-ink">
-              <input
-                type="checkbox"
-                checked={values.hasStoneOrSteel}
-                onChange={(event) =>
-                  setValues((prev) => ({ ...prev, hasStoneOrSteel: event.target.checked }))
-                }
-                className="h-6 w-6 accent-ember"
-              />
-              I have a pizza stone or steel
-            </label>
+            <StoneOrSteelCheckbox
+              checked={values.hasStoneOrSteel}
+              onChange={(checked) => setValues((prev) => ({ ...prev, hasStoneOrSteel: checked }))}
+              panBaked={recipe.panBaked === true}
+            />
           </fieldset>
 
           <fieldset id="section-dough" className="flex flex-col gap-4 rounded-2xl border border-line bg-surface p-4">

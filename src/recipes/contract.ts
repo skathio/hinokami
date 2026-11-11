@@ -204,6 +204,10 @@ export interface Recipe {
    * mark. Optional fields, so adding them is not a breaking change to the contract. */
   readonly icon?: string;
 
+  /** True for a style baked in a pan. The "stone or steel" question then means putting the pan on a
+   * preheated stone or steel (which still speeds the bake), not baking the dough directly on it. */
+  readonly panBaked?: boolean;
+
   readonly formula: BakersPercentageFormula;
   readonly pathways: ReadonlyArray<Pathway>;
   readonly bounds: RecipeBounds;

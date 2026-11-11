@@ -1,7 +1,7 @@
 // The glanceable one-step runner (FR-7, NFR-5, NFR-6) — the screen a baker actually spends a bake
 // looking at. Shows exactly the current step: its name, why it matters, its scheduled time, and
 // (when the underlying stage carries a `cue`) an estimate framing, since fermentation times are
-// never presented as precise (NFR-5). A single primary action ("Done — next step") advances;
+// never presented as precise (NFR-5). A single primary action ("Next") advances;
 // everything else (back, nudge, recipe, timeline, abandon) is secondary. Drives the wake-lock hook off
 // `isStepActive` and renders the completion screen once the session's `status` flips to
 // `'completed'` (`engine/progression.ts`'s `advance`).
@@ -61,8 +61,29 @@ function resolveHowIngredientRefs(
  * needs a different id. */
 const BAKE_STAGE_ID = 'bake';
 
-const secondaryButton =
-  'min-h-11 rounded-md border border-line px-1 py-2 text-sm font-medium leading-tight text-ink hover:bg-surface-2';
+// Three tiers of action, each looking like what it does: the one primary action (advance), tool
+// tiles that open or adjust something and can be undone, and a quiet destructive action set apart.
+const toolTile =
+  'flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border border-line bg-surface px-1 py-2 text-sm font-semibold leading-tight text-ink hover:bg-surface-2';
+const backButton =
+  'flex min-h-16 w-20 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border-2 border-line bg-surface text-sm font-semibold text-ink hover:bg-surface-2';
+const abandonButton =
+  'mx-auto flex min-h-11 items-center gap-2 rounded-md px-4 text-sm font-semibold text-danger underline-offset-4 hover:underline';
+
+/** Small stroke icons, decorative (the button text carries the name). */
+function Icon({ path }: { path: string }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d={path} />
+    </svg>
+  );
+}
+
+const ICON_BACK = 'M15 18l-6-6 6-6';
+const ICON_NUDGE = 'M12 7v5l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z';
+const ICON_RECIPE = 'M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3V4zM9 8h6M9 12h6';
+const ICON_TIMELINE = 'M4 6h16M4 12h10M4 18h14';
+const ICON_ABANDON = 'M6 6l12 12M18 6L6 18';
 
 export default function StepRunnerScreen() {
   const session = useSessionStore((state) => state.session);
@@ -224,35 +245,42 @@ export default function StepRunnerScreen() {
       <div className="sticky bottom-0 border-t border-line bg-canvas pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
         <div className="mx-auto w-full max-w-lg space-y-3 px-5">
           <CountdownTimer />
-          <button
-            type="button"
-            onClick={advanceStep}
-            className="min-h-16 w-full rounded-xl bg-ember px-4 py-4 text-2xl font-bold text-on-ember hover:brightness-90"
-          >
-            Done — next step
-          </button>
-          <div className="grid grid-cols-5 gap-1.5">
-            <button type="button" onClick={backStep} className={secondaryButton}>
-              Go back
+          <div className="flex gap-3">
+            <button type="button" onClick={backStep} aria-label="Go back" className={backButton}>
+              <Icon path={ICON_BACK} />
+              Back
             </button>
+            <button
+              type="button"
+              onClick={advanceStep}
+              className="min-h-16 flex-1 rounded-xl bg-ember px-4 py-4 text-2xl font-bold text-on-ember hover:brightness-90"
+            >
+              Next
+            </button>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
             <button
               type="button"
               aria-expanded={nudgeOpen}
               onClick={() => setNudgeOpen((open) => !open)}
-              className={secondaryButton}
+              className={toolTile}
             >
+              <Icon path={ICON_NUDGE} />
               Nudge pace
             </button>
-            <button type="button" onClick={() => setRecipeCardOpen(true)} className={secondaryButton}>
+            <button type="button" onClick={() => setRecipeCardOpen(true)} className={toolTile}>
+              <Icon path={ICON_RECIPE} />
               Recipe
             </button>
-            <button type="button" onClick={() => setTimelineOpen(true)} className={secondaryButton}>
+            <button type="button" onClick={() => setTimelineOpen(true)} className={toolTile}>
+              <Icon path={ICON_TIMELINE} />
               Timeline
             </button>
-            <button type="button" onClick={() => setAbandonOpen(true)} className={secondaryButton}>
-              Abandon bake
-            </button>
           </div>
+          <button type="button" onClick={() => setAbandonOpen(true)} className={abandonButton}>
+            <Icon path={ICON_ABANDON} />
+            Abandon bake
+          </button>
         </div>
       </div>
 

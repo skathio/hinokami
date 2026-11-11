@@ -11,7 +11,7 @@ import {
 
 describe('parsePrefs (untrusted input)', () => {
   it('accepts known values', () => {
-    expect(parsePrefs('{"theme":"dark","unit":"F"}')).toEqual({ theme: 'dark', unit: 'F' });
+    expect(parsePrefs('{"theme":"dark","unit":"F"}')).toEqual({ ...DEFAULT_PREFS, theme: 'dark', unit: 'F' });
   });
 
   it.each([null, '', 'not json', '[]', '42', 'null', '{"theme":"neon","unit":"K"}', '{"theme":{},"unit":1}'])(
@@ -22,7 +22,22 @@ describe('parsePrefs (untrusted input)', () => {
   );
 
   it('keeps a valid field when the other is invalid', () => {
-    expect(parsePrefs('{"theme":"light","unit":"K"}')).toEqual({ theme: 'light', unit: 'C' });
+    expect(parsePrefs('{"theme":"light","unit":"K"}')).toEqual({ ...DEFAULT_PREFS, theme: 'light', unit: 'C' });
+  });
+
+  it('defaults to sleeping through the night and accepts a valid awake window', () => {
+    expect(DEFAULT_PREFS.awakeStartMinute).toBe(7 * 60);
+    expect(DEFAULT_PREFS.awakeEndMinute).toBe(23 * 60);
+    expect(parsePrefs('{"awakeStartMinute":480,"awakeEndMinute":60}')).toMatchObject({
+      awakeStartMinute: 480,
+      awakeEndMinute: 60,
+    });
+  });
+
+  it.each([-1, 1440, 7.5, '420', null])('rejects an out-of-range awake minute %j', (bad) => {
+    expect(parsePrefs(JSON.stringify({ awakeStartMinute: bad })).awakeStartMinute).toBe(
+      DEFAULT_PREFS.awakeStartMinute,
+    );
   });
 });
 
@@ -44,7 +59,7 @@ describe('prefs store', () => {
   it('persists under its own key and sets data-theme', () => {
     setTheme('dark');
     setUnit('F');
-    expect(JSON.parse(localStorage.getItem(PREFS_STORAGE_KEY) ?? '')).toEqual({ theme: 'dark', unit: 'F' });
+    expect(JSON.parse(localStorage.getItem(PREFS_STORAGE_KEY) ?? '')).toEqual({ ...DEFAULT_PREFS, theme: 'dark', unit: 'F' });
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
     setTheme('light');
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
