@@ -14,6 +14,7 @@
 
 import { useSessionStore } from '@/store/session';
 import { useModalFocus } from '@/hooks/useModalFocus';
+import BakeSplitLine from './BakeSplitLine';
 
 export interface RecipeCardProps {
   onClose: () => void;
@@ -89,6 +90,7 @@ export default function RecipeCard({ onClose }: RecipeCardProps) {
                 <p className="font-display text-2xl font-bold text-sun">
                   {bakeAdaptation.bakeTempC}°C for {Math.round(bakeAdaptation.bakeTimeMinutes)} min
                 </p>
+                <BakeSplitLine bake={bakeAdaptation} className="text-base font-semibold text-ink" />
                 {bakeAdaptation.doughGuidance && (
                   <p className="text-base text-muted">{bakeAdaptation.doughGuidance}</p>
                 )}

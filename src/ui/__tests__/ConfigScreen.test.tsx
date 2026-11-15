@@ -24,12 +24,20 @@ function resetStore(): void {
   useSessionStore.setState({ session: null, migrationNotice: null, view: 'config' });
 }
 
+// A fixed local morning, so every "now + N" target lands the same way whenever the suite runs.
+// On the real clock, an evening run pushed the suggested ready time outside the default awake
+// hours (07:00–23:00), so the banner showed the awake-hours wording instead of "too soon".
+const FIXED_NOW = new Date(2026, 0, 15, 9, 0, 0);
+
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(FIXED_NOW);
   localStorage.clear();
   resetStore();
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -264,7 +272,7 @@ describe('ConfigScreen — "Use earliest time" closes the real feasibility gap (
 
   it('resubmission succeeds after simulated wall-clock time elapses before the click (real engine + real store, no mocks)', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
-    const baseNow = new Date('2026-07-24T09:00:00.000Z');
+    const baseNow = new Date(2026, 6, 24, 9, 0, 0); // local 09:00, inside the default awake hours in any time zone
     vi.setSystemTime(baseNow);
 
     // Same-day pathway at a non-reference ambient: `bulk`/`proof` are Q10-scaled and only land on

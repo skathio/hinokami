@@ -22,7 +22,15 @@ import {
   type StageRef,
   type TimingContext,
 } from '../contract';
-import { pizzaBounds, pizzaRecipe, q10Minutes } from './index';
+import {
+  ADD_CHEESE_STEP,
+  DRAIN_MOZZARELLA_STEP,
+  freshCheeseMinutes,
+  OVEN_MODE_STEP,
+  pizzaBounds,
+  pizzaRecipe,
+  q10Minutes,
+} from './index';
 
 const LOW_TEMP_CAVEAT =
   'Results may be pale/undercooked at this temperature — consider preheating longer and ' +
@@ -36,6 +44,8 @@ interface BakeCurve {
    * pizza, whose bake is set by conduction through the pan rather than oven temperature alone. */
   readonly exponent: number;
   readonly stoneFactor: number;
+  /** Bake the base with sauce only and add fresh mozzarella late (`freshCheeseMinutes`). */
+  readonly splitBake?: boolean;
 }
 
 /** `bakeTime = refMinutes × (refTempC / bakeTempC)^exponent × (hasStone ? stoneFactor : 1)`, capped
@@ -63,6 +73,7 @@ function makeAdaptBake(bounds: RecipeBounds, curve: BakeCurve) {
       value: {
         bakeTempC,
         bakeTimeMinutes,
+        cheeseMinutes: curve.splitBake ? freshCheeseMinutes(bakeTempC, bakeTimeMinutes) : undefined,
         doughGuidance: undefined,
         caveat: ctx.ovenMaxC < bounds.ovenMin + 20 ? LOW_TEMP_CAVEAT : undefined,
       },
@@ -212,19 +223,25 @@ export const romanRecipe: Recipe = buildStyle({
   description: 'Long, high-hydration pizza alla pala, crisp outside and airy inside.',
   formula: { water: 78, salt: 2.5, oil: 2 },
   // Same-day: 6 h at 24 °C (2 h bulk + 4 h ball proof). Cold: tuned for the scheduler's 48 h.
-  yeast: { 'same-day': 0.08, 'cold-ferment': 0.15 },
+  // Same-day 0.10% is Craig's 6 h value at 24 °C (0.08%) with a 1.25× margin, because many dry
+  // yeasts run slower than his chart.
+  yeast: { 'same-day': 0.1, 'cold-ferment': 0.15 },
   timing: { bulk: 120, coldBulk: 60, proof: 240, temper: 180 },
   bounds: { ballWeightGMin: 250, ballWeightGMax: 500, ballWeightGDefault: 300, ovenMin: 230, ovenStyleMax: 290 },
   // 15 min at 250 °C on a tray; about 12 min on a stone.
-  curve: { styleName: 'a pizza alla pala', refTempC: 250, refMinutes: 15, exponent: 2.8, stoneFactor: 0.8 },
+  curve: { styleName: 'a pizza alla pala', refTempC: 250, refMinutes: 15, exponent: 2.8, stoneFactor: 0.8, splitBake: true },
   how: {
     shape: [
       { action: 'Divide the dough into portions at your target ball weight and dust with flour.' },
       { action: 'Keep the balls loose and untensioned; they should relax rather than spring back.' },
     ],
     bake: [
+      DRAIN_MOZZARELLA_STEP,
+      OVEN_MODE_STEP,
+      { action: 'Put the stone or tray on the lowest rack, so the base gets the most heat.' },
       { action: 'Stretch the dough thin and long with floured hands, then brush the surface lightly with extra olive oil.' },
-      { action: 'Add light toppings, then bake on a preheated stone or tray until the crust is crisp and evenly browned.' },
+      { action: 'Spread a thin layer of sauce only, with no cheese yet, and bake until the base has set and started to color.' },
+      ADD_CHEESE_STEP,
     ],
   },
 });
