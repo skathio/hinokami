@@ -19,6 +19,7 @@ import CountdownTimer from './CountdownTimer';
 import Wordmark from './Wordmark';
 import ThemeToggle from './ThemeToggle';
 import { formatClockTime, isOvernight } from './stepTime';
+import BakeSplitLine from './BakeSplitLine';
 
 const ESTIMATE_LABEL = 'Estimated — trust dough feel over the clock.';
 
@@ -192,6 +193,7 @@ export default function StepRunnerScreen() {
               <p className="font-display text-3xl font-extrabold tracking-tight text-sun">
                 {bakeSpec.bakeTempC}°C for {Math.round(bakeSpec.bakeTimeMinutes)} min
               </p>
+              <BakeSplitLine bake={bakeSpec} className="mt-1 text-lg font-semibold text-ink" />
             </div>
           )}
 

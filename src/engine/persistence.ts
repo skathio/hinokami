@@ -108,10 +108,11 @@ function reviveScheduledStep(raw: unknown): ScheduledStep | null {
  * restore — it's caveat-display data, not structurally load-bearing for the session itself. */
 function isValidBakeAdaptationShape(raw: unknown): raw is BakeAdaptation {
   if (!isPlainObject(raw)) return false;
-  const { bakeTempC, bakeTimeMinutes, doughGuidance, caveat } = raw;
+  const { bakeTempC, bakeTimeMinutes, cheeseMinutes, doughGuidance, caveat } = raw;
   return (
     typeof bakeTempC === 'number' &&
     typeof bakeTimeMinutes === 'number' &&
+    (cheeseMinutes === undefined || typeof cheeseMinutes === 'number') &&
     (doughGuidance === undefined || typeof doughGuidance === 'string') &&
     (caveat === undefined || typeof caveat === 'string')
   );

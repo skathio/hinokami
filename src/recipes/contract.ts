@@ -173,6 +173,9 @@ export interface OvenContext {
 export interface BakeAdaptation {
   readonly bakeTempC: number;
   readonly bakeTimeMinutes: number;
+  /** For a split bake: the last minutes of `bakeTimeMinutes` that the fresh mozzarella spends in
+   * the oven, after a sauce-only base bake. Absent for a style that bakes its toppings throughout. */
+  readonly cheeseMinutes?: number;
   readonly doughGuidance?: string;
   readonly caveat?: string;
 }

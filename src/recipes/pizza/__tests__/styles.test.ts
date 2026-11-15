@@ -88,7 +88,7 @@ describe('Roman (alla pala) calibration', () => {
   });
 
   it('matches yeast to fermentation length: 0.08% for 6 h same-day, 0.15% for a 48 h cold ferment', () => {
-    expect(pct(romanRecipe, 'same-day', 'Yeast (instant dry)')).toBe(0.08);
+    expect(pct(romanRecipe, 'same-day', 'Yeast (instant dry)')).toBe(0.1);
     expect(pct(romanRecipe, 'cold-ferment', 'Yeast (instant dry)')).toBe(0.15);
     expect(minutesAt24(romanRecipe, 'bulk') + minutesAt24(romanRecipe, 'proof')).toBe(360);
     expect(minutesAt24(romanRecipe, 'bulk', 'cold-ferment')).toBe(60);

@@ -197,18 +197,39 @@ const TEMPER_HOW: HowStep[] = [
   { action: 'Let them warm at room temperature until no longer cold to the touch.' },
 ];
 
+// Split bake: fresh mozzarella (fior di latte) breaks within about 1–4 min at home-oven max, well
+// short of the base's bake, so the base bakes with sauce only and the cheese goes on late.
+export const DRAIN_MOZZARELLA_STEP: HowStep = {
+  action:
+    'A few hours ahead, tear the mozzarella into small pieces and leave them on paper towels in the ' +
+    'fridge to drain. Wet mozzarella leaks whey and oil across the pizza.',
+};
+export const OVEN_MODE_STEP: HowStep = {
+  action:
+    'Bake with top and bottom heat and the fan off. The fan dries the top, so the cheese cooks ' +
+    'before the base does.',
+};
+export const ADD_CHEESE_STEP: HowStep = {
+  action:
+    'After the sauce-only minutes on the bake card, slide the pizza out, scatter the drained ' +
+    'mozzarella and any other toppings, and finish the bake. Pull it once the cheese has melted, before it yellows.',
+};
+
 const BAKE_HOW: HowStep[] = [
+  DRAIN_MOZZARELLA_STEP,
+  OVEN_MODE_STEP,
   {
     action:
       'Stretch the tempered ball into a round by hand, leaving a puffy outer rim — avoid a rolling ' +
       'pin, which knocks out the fermentation gas.',
   },
-  { action: 'Add toppings lightly so the crust cooks through in the short bake time.' },
+  { action: 'Spread a thin layer of sauce only, with no cheese yet.' },
   {
     action:
       'Launch the pizza onto the preheated stone or steel with a floured or semolina-dusted peel, ' +
       'then rotate partway through baking for even color.',
   },
+  ADD_CHEESE_STEP,
 ];
 
 // ---------------------------------------------------------------------------------------------
@@ -308,6 +329,15 @@ const DOUGH_GUIDANCE_TEXT =
   'This bakes long enough at lower oven temperatures that a slightly higher hydration ' +
   '(up to ~65%, vs. this recipe\'s 62% default) can help the crust develop fully.';
 
+/** Minutes fresh mozzarella spends in the oven at `bakeTempC`: 3.5 min at 250 °C on the same
+ * power law as the bake (about 2.3 min at 290 °C), never under 2 min and never more than half
+ * the bake, so the base always gets a sauce-only start. Calibrated from home-oven pala and
+ * Neapolitan recipes that add fior di latte for the last 2–5 min. */
+export function freshCheeseMinutes(bakeTempC: number, bakeTimeMinutes: number): number {
+  const minutes = Math.max(2, 3.5 * (250 / bakeTempC) ** EXPONENT);
+  return Math.min(minutes, bakeTimeMinutes / 2);
+}
+
 /**
  * EXTENSION POINT B. Pure. `bakeTempC = min(ovenMaxC, STYLE_MAX_C)`;
  * `bakeTimeS = BASE_TIME_S × (BASE_TEMP_C / bakeTempC)^EXPONENT × (hasStone ? STONE_FACTOR : 1)`.
@@ -336,7 +366,13 @@ function adaptBake(ctx: OvenContext): Result<BakeAdaptation, OvenTooCold> {
 
   return {
     ok: true,
-    value: { bakeTempC, bakeTimeMinutes, doughGuidance, caveat },
+    value: {
+      bakeTempC,
+      bakeTimeMinutes,
+      cheeseMinutes: freshCheeseMinutes(bakeTempC, bakeTimeMinutes),
+      doughGuidance,
+      caveat,
+    },
   };
 }
 
@@ -417,5 +453,6 @@ export const pizzaRecipe: Recipe = {
  * persisted `BakeSession` compares this against the live recipe's version at rehydration time.
  * 1.1.0 (iteration 2.2, D15): every stage gained authored `how` content — a real recipe-content
  * change, so a bake already in progress under 1.0.0 hits the "continue-and-notify" mismatch path
- * on its next rehydration rather than silently gaining new content mid-bake. */
-export const PIZZA_CONTENT_VERSION = '1.1.0';
+ * on its next rehydration rather than silently gaining new content mid-bake.
+ * 1.2.0: split bake (sauce-only base, mozzarella late), oven-mode steps, Roman same-day yeast 0.10%. */
+export const PIZZA_CONTENT_VERSION = '1.2.0';
