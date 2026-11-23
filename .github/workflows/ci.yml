@@ -1,0 +1,39 @@
+# The hashira static webapp flow (GitHub Pages). Pull requests run CI only; pushes to main and
+# manual runs also deploy.
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}   # deny-all default; each job grants only what it needs
+
+jobs:
+  ci:
+    uses: skathio/hashira/.github/workflows/static-webapp-ci.yml@2c8d52526cbce593a445f7572b599813503160f5 # v3.0.0
+    permissions:
+      contents: read            # check out the repository
+      id-token: write           # upload-pages-artifact authenticates to Pages
+      pages: write              # upload-pages-artifact stores the site for deploy
+      pull-requests: write      # coverage comment on the pull request
+      security-events: write    # upload CodeQL results when CodeQL is enabled
+    with:
+      node_version: '24'        # the workflow defaults to 20; this app builds and tests on 24
+  # The merge is the approval: main only takes reviewed pull requests (or an owner), so a push to
+  # main builds and deploys with no second, manual approval. github-pages accepts main only.
+  deploy:
+    needs: ci   # same-run artifact handoff: without it deploy starts before the artifact exists
+    if: github.event_name != 'pull_request'
+    # One Pages deploy at a time; a newer approved run queues behind an older one instead of racing it.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    environment: github-pages   # main only; the merge is the approval
+    permissions:
+      contents: read
+      pages: write              # deploy-pages publishes the site
+      id-token: write           # deploy-pages authenticates to Pages with OIDC
+    steps:
+      - uses: skathio/hashira/.github/actions/pages-deploy@2c8d52526cbce593a445f7572b599813503160f5 # v3.0.0

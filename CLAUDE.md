@@ -73,18 +73,19 @@ Unit tests in jsdom do not cover layout or colour.
 
 ## CI and deploy
 
-- `.github/workflows/pr.yml` runs on every PR and calls the pinned reusable workflow
-  `skathio/hashira/.github/workflows/static-webapp-ci.yml@<sha>`: `npm ci`, `npm run build`,
-  `npm test` with a sticky coverage comment, and a scan suite (osv, gitleaks,
-  dependency-review; CodeQL and actionlint are off by default).
-- `.github/workflows/deploy.yml`: a push to `main`, meaning a merged PR, runs the same CI
-  and deploys `dist/` to GitHub Pages. Merging is the approval, and there is no separate
-  release step or tag.
+- `.github/workflows/ci.yml` runs on every PR, on every push to `main` (a merged PR) and on
+  manual dispatch. Its `ci` job calls the pinned reusable workflow
+  `skathio/hashira/.github/workflows/static-webapp-ci.yml@<sha>` (hashira v3): `npm ci`,
+  `npm run build`, `npm test` with a sticky coverage comment, a scan suite (osv, gitleaks,
+  dependency-review; CodeQL and actionlint are off by default) and SoMi's quality gate, which
+  fails a PR whose changed code breaks the strict quality limits.
+- Its `deploy` job is skipped on PRs; on `main` it deploys `dist/` to GitHub Pages. Merging is
+  the approval, and there is no separate release step or tag.
 - `.github/workflows/homepage.yml` pings the org homepage when `.github/homepage.json` or
   `public/mark.svg` changes on main.
-- When bumping the hashira pin, update every SHA together: `uses:` and `library_ref` in
-  `pr.yml` and `deploy.yml`, plus the `pages-deploy` action `uses:` in `deploy.yml`
-  (`grep -rn hashira .github/workflows`).
+- When bumping the hashira pin, update both SHAs in `ci.yml` together: the reusable workflow
+  `uses:` and the `pages-deploy` action `uses:` (`grep -rn hashira .github/workflows`). v3 checks
+  its own actions out at its own commit, so there is no `library_ref` input any more.
 - Dependabot opens weekly grouped npm and actions PRs.
 
 ## Conventions

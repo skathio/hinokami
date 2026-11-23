@@ -33,8 +33,8 @@ export default defineConfig({
     // header comment (`src/store/session.ts` / Phase 3 is the first module to need a working
     // `localStorage` in tests).
     setupFiles: ['./src/test/setup-jsdom-local-storage.ts', './src/test/setup-rtl.ts'],
-    // `.hashira/` is a CI-only self-checkout (D14, the hashira reusable-workflow library's
-    // `library_ref` mechanism) that isn't present locally. It carries hashira's own CommonJS
+    // `.hashira/` is a CI-only checkout of the hashira reusable-workflow library (at the
+    // workflow's own commit) that isn't present locally. It carries hashira's own CommonJS
     // test fixtures, which Vitest's default glob otherwise picks up and fails to load under
     // this repo's `"type": "module"` — exclude it alongside Vitest's own defaults.
     exclude: [...configDefaults.exclude, '.hashira/**'],
