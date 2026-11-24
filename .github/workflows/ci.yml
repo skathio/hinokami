@@ -11,7 +11,7 @@ permissions: {}   # deny-all default; each job grants only what it needs
 
 jobs:
   ci:
-    uses: skathio/hashira/.github/workflows/static-webapp-ci.yml@1bd415e21fb070c46f07e05bfaa70e42c0531342 # v3.1.0
+    uses: skathio/hashira/.github/workflows/static-webapp-ci.yml@v3  # moving major tag: new v3.x releases apply with no PR
     permissions:
       contents: read            # check out the repository
       id-token: write           # upload-pages-artifact authenticates to Pages
@@ -36,4 +36,4 @@ jobs:
       pages: write              # deploy-pages publishes the site
       id-token: write           # deploy-pages authenticates to Pages with OIDC
     steps:
-      - uses: skathio/hashira/.github/actions/pages-deploy@1bd415e21fb070c46f07e05bfaa70e42c0531342 # v3.1.0
+      - uses: skathio/hashira/.github/actions/pages-deploy@v3  # keep on the same tag as the ci job above
