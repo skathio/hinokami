@@ -74,18 +74,25 @@ Unit tests in jsdom do not cover layout or colour.
 ## CI and deploy
 
 - `.github/workflows/ci.yml` runs on every PR, on every push to `main` (a merged PR) and on
-  manual dispatch. Its `ci` job calls the pinned reusable workflow
-  `skathio/hashira/.github/workflows/static-webapp-ci.yml@<sha>` (hashira v3): `npm ci`,
-  `npm run build`, `npm test` with a sticky coverage comment, a scan suite (osv, gitleaks,
-  dependency-review; CodeQL and actionlint are off by default) and SoMi's quality gate, which
-  fails a PR whose changed code breaks the strict quality limits.
+  manual dispatch. Its `ci` job calls the reusable workflow
+  `skathio/hashira/.github/workflows/static-webapp-ci.yml@v3`: `npm ci`, `npm run build`,
+  `npm test`, a scan suite (osv, gitleaks, dependency-review; CodeQL and actionlint are off by
+  default) and SoMi's quality gate, which fails a PR whose changed code breaks the strict quality
+  limits. Scan findings fail the run: fix them, and allowlist only a verified false positive, on
+  its own line (`// gitleaks:allow`).
+- hashira's `passed` job reports as **`ci / passed`**, the one check the org's `ci-required`
+  ruleset requires on `main` (with the branch up to date). It fails if any other CI job failed,
+  and keeps one CI summary comment on the PR (gate, scans, tests, coverage), edited in place.
+  Keep the caller job's id `ci`, or the check name changes and the ruleset blocks every merge.
 - Its `deploy` job is skipped on PRs; on `main` it deploys `dist/` to GitHub Pages. Merging is
   the approval, and there is no separate release step or tag.
 - `.github/workflows/homepage.yml` pings the org homepage when `.github/homepage.json` or
   `public/mark.svg` changes on main.
-- When bumping the hashira pin, update both SHAs in `ci.yml` together: the reusable workflow
-  `uses:` and the `pages-deploy` action `uses:` (`grep -rn hashira .github/workflows`). v3 checks
-  its own actions out at its own commit, so there is no `library_ref` input any more.
+- Both hashira refs in `ci.yml`, the reusable workflow `uses:` and the `pages-deploy` action
+  `uses:`, track the moving `@v3` tag, so new v3.x releases apply with no PR here. Keep them on
+  the same ref, and move both together to `@v4` when that ships
+  (`grep -rn hashira .github/workflows`). hashira checks its own actions out at the commit the
+  tag resolves to, so there is no `library_ref` input.
 - Dependabot opens weekly grouped npm and actions PRs.
 
 ## Conventions

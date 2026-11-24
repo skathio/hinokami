@@ -40,7 +40,7 @@ export default defineConfig({
     exclude: [...configDefaults.exclude, '.hashira/**'],
     coverage: {
       // hashira's `run-tests-js` CI action requires `npm test` to produce
-      // `coverage/lcov.info` (Phase 5.2 — .somi/plans/hinokami/phases/05-pwa-and-deploy.md).
+      // `coverage/lcov.info`; its test job reads the coverage totals from that file.
       provider: 'v8',
       reporter: ['lcov', 'text'],
     },

@@ -5,7 +5,9 @@
 
 import { useSyncExternalStore } from 'react';
 
-export const PREFS_STORAGE_KEY = 'hinokami-prefs-v1';
+// A localStorage key name, not a credential: gitleaks' generic-api-key rule matches the `KEY`
+// in the identifier, so this one line is allowlisted. Keep it in step with index.html's pre-paint script.
+export const PREFS_STORAGE_KEY = 'hinokami-prefs-v1'; // gitleaks:allow
 
 export type ThemePref = 'system' | 'light' | 'dark';
 export type UnitPref = 'C' | 'F';
